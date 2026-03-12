@@ -43,10 +43,8 @@
     .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
     .topbar{
-      position:sticky;top:0;z-index:50;
       border-bottom:1px solid var(--border);
-      background:rgba(11,16,32,.88);
-      backdrop-filter:blur(18px);
+      background:rgba(11,16,32,.95);
     }
     .topbar-inner{
       max-width:1500px;margin:0 auto;padding:14px 22px;
@@ -70,9 +68,9 @@
     .page{max-width:1500px;margin:0 auto;padding:22px}
 
     .sticky-tools{
-      position:sticky;top:68px;z-index:40;margin-bottom:18px;padding:14px;
-      background:rgba(18,25,43,.92);border:1px solid var(--border);
-      border-radius:18px;backdrop-filter:blur(18px);box-shadow:var(--shadow);
+      margin-bottom:18px;padding:14px;
+      background:var(--panel2);border:1px solid var(--border);
+      border-radius:18px;box-shadow:var(--shadow);
     }
 
     .tool-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:10px}
@@ -517,6 +515,15 @@ Objednávka:
         <span class="pill red">stock risk</span>
       </div>
 
+      <div class="grid one" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-head"><h3>Zásoby podle skladů</h3><span class="pill blue">CZ · SK · Prodejny</span></div>
+          <div class="card-body" id="warehouseBreakdownCard">
+            <div class="small">Data se načítají…</div>
+          </div>
+        </div>
+      </div>
+
       <div class="grid two">
         <div class="card">
           <div class="card-head"><h3>Nejrychlejší obrátka</h3><span class="pill blue">turnover</span></div>
@@ -734,7 +741,7 @@ Objednávka:
       mode: "cfo",
       page: "finance",
       data: null,
-      raw: { products: [], orders: [] },
+      raw: { products: [], orders: [], warehouses: [] },
       filteredOrderPlan: [],
       filteredPortfolio: []
     };
@@ -944,27 +951,59 @@ Objednávka:
       return json.data;
     }
 
+    async function fetchWarehouses(){
+      try{
+        const data = await gql(`{ warehouses { id name } }`);
+        return data.warehouses || [];
+      }catch{
+        return [];
+      }
+    }
+
     async function fetchAllProducts(){
       let offset = 0;
       const limit = 1000;
       let all = [];
       let hasNextPage = true;
+      let useStocks = true; // try to fetch per-warehouse stocks
 
       while(hasNextPage){
-        const data = await gql(`
-          query products($offset:Int,$limit:Int){
-            products(offset:$offset,limit:$limit){
-              items{
-                id
-                title
-                code
-                inStore
-                price{ withVat }
+        let data;
+        if(useStocks){
+          try{
+            data = await gql(`
+              query products($offset:Int,$limit:Int){
+                products(offset:$offset,limit:$limit){
+                  items{
+                    id title code inStore
+                    price{ withVat }
+                    stocks{ warehouseId quantity }
+                  }
+                  hasNextPage
+                }
               }
-              hasNextPage
-            }
+            `, { offset, limit });
+          }catch{
+            useStocks = false;
+            data = await gql(`
+              query products($offset:Int,$limit:Int){
+                products(offset:$offset,limit:$limit){
+                  items{ id title code inStore price{ withVat } }
+                  hasNextPage
+                }
+              }
+            `, { offset, limit });
           }
-        `, { offset, limit });
+        } else {
+          data = await gql(`
+            query products($offset:Int,$limit:Int){
+              products(offset:$offset,limit:$limit){
+                items{ id title code inStore price{ withVat } }
+                hasNextPage
+              }
+            }
+          `, { offset, limit });
+        }
 
         const chunk = data.products.items || [];
         all = all.concat(chunk);
@@ -1063,7 +1102,8 @@ Objednávka:
           price: Number(p.price?.withVat || 0),
           isVirtual: isVirtualCode(code),
           packRaw,
-          biggestPack: largestPack
+          biggestPack: largestPack,
+          stocks: p.stocks || null
         });
       });
 
@@ -1084,61 +1124,49 @@ Objednávka:
         if(od < fromDate) return;
         if(order.cancelled) return;
 
-        let orderHasIncludedProduct = false;
-        let orderIncludedRevenue = 0;
+        // ── Revenue: vždy order.totalPrice bez ohledu na filtr produktů ──
+        const orderTotal = Number(order.totalPrice?.withVat || 0);
+
+        validOrdersCount++;
+        totalOrderValue += orderTotal;
+
+        if(od >= monthStart){
+          revenueMTD += orderTotal;
+          ordersMTDCount++;
+        }
+        if(od >= yesterdayStart && od < yesterdayEnd){
+          revenueYesterday += orderTotal;
+          ordersYesterdayCount++;
+        }
+        if(od >= weekAgoStart && od < weekAgoEnd){
+          revenueWeekAgo += orderTotal;
+          ordersWeekAgoCount++;
+        }
+        const dayIdx = daily7.findIndex(b => {
+          const be = new Date(b.date.getFullYear(), b.date.getMonth(), b.date.getDate() + 1);
+          return od >= b.date && od < be;
+        });
+        if(dayIdx >= 0){
+          daily7[dayIdx].revenue += orderTotal;
+          daily7[dayIdx].orders++;
+        }
+        if(od >= yearStart){
+          revenueYTD += orderTotal;
+          ordersYTDCount++;
+        }
+
+        // ── salesMap: filtrovaný (pro stock analýzu / ABC / perDay) ──
+        if(od < periodFrom) return;
 
         (order.items || []).forEach((item) => {
           if(item.type !== "product") return;
-
           const key = String(item.productId || "");
           if(!key || !productMap.has(key)) return;
-
-          orderHasIncludedProduct = true;
-          orderIncludedRevenue += Number(item.totalPrice?.withVat || 0);
-
-          if(od < periodFrom) return;
-
           const current = salesMap.get(key) || { qty: 0, revenue: 0 };
           current.qty += Number(item.pieces || 0);
           current.revenue += Number(item.totalPrice?.withVat || 0);
           salesMap.set(key, current);
         });
-
-        if(!orderHasIncludedProduct) return;
-
-        validOrdersCount++;
-        totalOrderValue += orderIncludedRevenue;
-
-        if(od >= monthStart){
-          revenueMTD += orderIncludedRevenue;
-          ordersMTDCount++;
-        }
-
-        if(od >= yesterdayStart && od < yesterdayEnd){
-          revenueYesterday += orderIncludedRevenue;
-          ordersYesterdayCount++;
-        }
-
-        if(od >= weekAgoStart && od < weekAgoEnd){
-          revenueWeekAgo += orderIncludedRevenue;
-          ordersWeekAgoCount++;
-        }
-
-        // daily7: bucket by day index
-        const dayIdx = daily7.findIndex(b => {
-          const bs = b.date;
-          const be = new Date(bs.getFullYear(), bs.getMonth(), bs.getDate() + 1);
-          return od >= bs && od < be;
-        });
-        if(dayIdx >= 0){
-          daily7[dayIdx].revenue += orderIncludedRevenue;
-          daily7[dayIdx].orders++;
-        }
-
-        if(od >= yearStart){
-          revenueYTD += orderIncludedRevenue;
-          ordersYTDCount++;
-        }
       });
 
       const products = [];
@@ -1240,6 +1268,24 @@ Objednávka:
 
       const avgOrderValue = validOrdersCount > 0 ? totalOrderValue / validOrdersCount : 0;
 
+      // ── Warehouse breakdown ──
+      const warehouseMap = new Map(); // warehouseId → { id, name, totalStock, totalValue, productCount }
+      for(const p of productMap.values()){
+        if(!p.stocks) continue;
+        for(const s of p.stocks){
+          const wid = String(s.warehouseId || "");
+          if(!wid) continue;
+          const qty = Number(s.quantity || 0);
+          if(!warehouseMap.has(wid)) warehouseMap.set(wid, { id: wid, name: wid, totalStock: 0, totalValue: 0, productCount: 0, zeroStockCount: 0 });
+          const w = warehouseMap.get(wid);
+          w.totalStock += qty;
+          w.totalValue += qty * p.price;
+          w.productCount++;
+          if(qty === 0) w.zeroStockCount++;
+        }
+      }
+      const warehouseBreakdown = [...warehouseMap.values()].sort((a,b) => b.totalValue - a.totalValue);
+
       return {
         periodDays,
         idealStockDays,
@@ -1267,7 +1313,8 @@ Objednávka:
         fastTurn,
         orderPlan,
         abcSummary,
-        avgDays
+        avgDays,
+        warehouseBreakdown
       };
     }
 
@@ -1678,6 +1725,89 @@ Objednávka:
         `).join("") || '<tr><td colspan="13" class="small">Nic neodpovídá filtru.</td></tr>';
     }
 
+    // Mapa warehouseId → user-friendly název (načítá se z API, uživatel může přepsat přes localStorage)
+    const STORAGE_KEY_WH_NAMES = "wpj_warehouse_names_v1";
+
+    function loadWhNames(){
+      try{ return JSON.parse(localStorage.getItem(STORAGE_KEY_WH_NAMES) || "{}"); }catch{ return {}; }
+    }
+    function saveWhNames(obj){ localStorage.setItem(STORAGE_KEY_WH_NAMES, JSON.stringify(obj)); }
+
+    function whName(id){
+      const custom = loadWhNames();
+      if(custom[id]) return custom[id];
+      const found = (APP.raw.warehouses || []).find(w => String(w.id) === String(id));
+      return found ? found.name : id;
+    }
+
+    function renderWarehouseBreakdown(m){
+      const el = qs("warehouseBreakdownCard");
+      if(!el) return;
+
+      if(!m.warehouseBreakdown || m.warehouseBreakdown.length === 0){
+        el.innerHTML = `<div class="small" style="padding:14px">Sklady per-warehouse nejsou k dispozici (API nevrátilo pole <code>stocks</code>).<br>Zobrazuje se součtové <code>inStore</code> na kartě skladu.</div>`;
+        return;
+      }
+
+      const totalVal = m.warehouseBreakdown.reduce((a,w) => a + w.totalValue, 0) || 1;
+      const whNames = loadWhNames();
+
+      el.innerHTML = `
+        <div class="toolbar" style="margin-bottom:10px">
+          <span class="small">Klikni na název skladu pro přejmenování</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Sklad</th>
+              <th class="r">Produktů</th>
+              <th class="r">Celkem ks</th>
+              <th class="r">Hodnota</th>
+              <th class="r">% hodnoty</th>
+              <th class="r">Nulové zásoby</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${m.warehouseBreakdown.map(w => {
+              const pct = Math.round((w.totalValue / totalVal) * 100);
+              const name = whName(w.id);
+              return `<tr>
+                <td>
+                  <span class="wh-name" data-wid="${w.id}" style="cursor:pointer;border-bottom:1px dashed var(--muted)" title="Klikni pro přejmenování">${name}</span>
+                  <span class="small" style="margin-left:6px;color:var(--muted)">#${w.id}</span>
+                </td>
+                <td class="r mono">${fmtI(w.productCount)}</td>
+                <td class="r mono">${fmtI(w.totalStock)}</td>
+                <td class="r mono">${fmtCZK(w.totalValue)}</td>
+                <td class="r">
+                  <div class="days-bar-wrap" style="justify-content:flex-end">
+                    <div class="days-bar-track"><div class="days-bar-fill" style="width:${pct}%;background:var(--blue)"></div></div>
+                    <span class="mono">${pct} %</span>
+                  </div>
+                </td>
+                <td class="r mono" style="color:${w.zeroStockCount > 0 ? "var(--orange)" : "var(--muted)"}">${fmtI(w.zeroStockCount)}</td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      `;
+
+      // Click to rename warehouses
+      el.querySelectorAll(".wh-name").forEach(span => {
+        span.addEventListener("click", () => {
+          const wid = span.dataset.wid;
+          const current = whName(wid);
+          const newName = prompt(`Přejmenuj sklad #${wid}:`, current);
+          if(newName !== null && newName.trim()){
+            const obj = loadWhNames();
+            obj[wid] = newName.trim();
+            saveWhNames(obj);
+            renderWarehouseBreakdown(m);
+          }
+        });
+      });
+    }
+
     function renderRiskSummary(m){
       const total = m.products.length || 1;
       qs("riskSummaryBox").innerHTML = `
@@ -1819,6 +1949,7 @@ Objednávka:
       renderRiskSummary(metrics);
       renderCarryingBreakdown(metrics);
       renderGrossProfit(metrics);
+      renderWarehouseBreakdown(metrics);
 
       applyOrderPlanFilters();
       applyPortfolioFilters();
@@ -1894,14 +2025,16 @@ Objednávka:
         savePackagingMap(qs("packagingMap").value);
         pbSet(15);
 
-        const [products, orders] = await Promise.all([
+        const [products, orders, warehouses] = await Promise.all([
           fetchAllProducts(),
-          fetchAllOrders()
+          fetchAllOrders(),
+          fetchWarehouses()
         ]);
 
         pbSet(80);
         APP.raw.products = products;
         APP.raw.orders = orders;
+        APP.raw.warehouses = warehouses;
 
         renderAllFromRaw(true);
         pbDone();
