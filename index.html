@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manažerský dashboard skladu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#12192b;
+      --panel2:#0f1627;
+      --panel3:#172036;
+      --text:#e8edf7;
+      --muted:#93a0b5;
+      --border:rgba(255,255,255,.08);
+      --blue:#6ea8ff;
+      --green:#43d17c;
+      --red:#f06b6b;
+      --orange:#f2a650;
+      --gold:#e6c173;
+      --purple:#a98bff;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --mono:'JetBrains Mono',monospace;
+      --font:'DM Sans',system-ui,sans-serif;
+    }
+
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:var(--font);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(110,168,255,.09), transparent 30%),
+        radial-gradient(circle at 100% 100%, rgba(67,209,124,.06), transparent 28%),
+        var(--bg);
+      color:var(--text);
+    }
+
+    .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+    .topbar{
+      position:sticky;top:0;z-index:50;
+      border-bottom:1px solid var(--border);
+      background:rgba(11,16,32,.88);
+      backdrop-filter:blur(18px);
+    }
+    .topbar-inner{
+      max-width:1500px;margin:0 auto;padding:14px 22px;
+      display:flex;justify-content:space-between;align-items:center;gap:16px;
+    }
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand-badge{
+      width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--gold),#9b6b1e);
+      box-shadow:0 6px 20px rgba(230,193,115,.22);font-size:18px;
+    }
+    .brand-title{font-size:18px;font-weight:800;line-height:1.1}
+    .brand-sub{font-size:11px;color:var(--muted);margin-top:2px}
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:7px 11px;border-radius:999px;border:1px solid var(--border);
+      background:var(--panel);color:var(--muted);font-size:11px;font-weight:700;
+    }
+
+    .page{max-width:1500px;margin:0 auto;padding:22px}
+
+    .sticky-tools{
+      position:sticky;top:68px;z-index:40;margin-bottom:18px;padding:14px;
+      background:rgba(18,25,43,.92);border:1px solid var(--border);
+      border-radius:18px;backdrop-filter:blur(18px);box-shadow:var(--shadow);
+    }
+
+    .tool-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:10px}
+    .tool-row:last-child{margin-bottom:0}
+    .field{display:flex;flex-direction:column;gap:6px;min-width:160px;flex:1}
+    .field.small{flex:0 0 220px}
+    .field.big{flex:2 1 420px}
+    label{
+      font-size:11px;font-weight:800;color:var(--muted);
+      text-transform:uppercase;letter-spacing:.08em;
+    }
+
+    input,select,textarea{
+      width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--border);
+      background:var(--panel2);color:var(--text);outline:none;font:inherit;
+    }
+    textarea{min-height:110px;resize:vertical}
+    input:focus,select:focus,textarea:focus{
+      border-color:rgba(110,168,255,.45);
+      box-shadow:0 0 0 3px rgba(110,168,255,.15);
+    }
+
+    .btns,.mode-nav,.page-nav{display:flex;flex-wrap:wrap;gap:8px}
+    button{
+      border:0;border-radius:12px;padding:11px 14px;cursor:pointer;
+      font-weight:800;color:#08101f;background:linear-gradient(135deg,#dde7f8,#b8c8e5);
+    }
+    button.secondary{color:var(--text);background:var(--panel3);border:1px solid var(--border)}
+    button.blue{background:linear-gradient(135deg,var(--blue),#4d7fe0)}
+    button.green{background:linear-gradient(135deg,var(--green),#179b55)}
+    button.gold{background:linear-gradient(135deg,var(--gold),#ba8d36)}
+    button.red{background:linear-gradient(135deg,var(--red),#cf4a4a)}
+    .mode-btn.active,.page-btn.active{outline:2px solid rgba(255,255,255,.22)}
+
+    .message{
+      display:none;margin-top:12px;padding:12px 14px;border-radius:12px;
+      white-space:pre-wrap;line-height:1.55;font-size:13px;border:1px solid var(--border);
+      background:var(--panel);
+    }
+    .message.error{
+      display:block;color:#ffc0c0;
+      background:rgba(240,107,107,.08);border-color:rgba(240,107,107,.25);
+    }
+    .message.ok{
+      display:block;color:#c6f7d7;
+      background:rgba(67,209,124,.08);border-color:rgba(67,209,124,.25);
+    }
+
+    .alert-strip{
+      display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0;
+    }
+    .alert-card{
+      border:1px solid var(--border);background:var(--panel);border-radius:16px;
+      padding:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;
+      cursor:pointer;box-shadow:var(--shadow);
+    }
+    .alert-card.red{background:rgba(240,107,107,.08);border-color:rgba(240,107,107,.25)}
+    .alert-card.orange{background:rgba(242,166,80,.08);border-color:rgba(242,166,80,.25)}
+    .alert-card.gold{background:rgba(230,193,115,.08);border-color:rgba(230,193,115,.25)}
+    .alert-card.blue{background:rgba(110,168,255,.08);border-color:rgba(110,168,255,.25)}
+    .alert-title{
+      font-size:11px;text-transform:uppercase;color:var(--muted);
+      font-weight:800;letter-spacing:.08em;margin-bottom:6px;
+    }
+    .alert-value{font-size:22px;font-weight:800;font-family:var(--mono)}
+    .alert-note{color:var(--muted);font-size:11px;white-space:nowrap}
+
+    .section{margin:28px 0 38px;display:none}
+    .section.active{display:block}
+    .section-head{
+      display:flex;justify-content:space-between;align-items:end;gap:16px;
+      margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);
+    }
+    .section-title{font-size:24px;font-weight:800;letter-spacing:-.02em}
+    .section-sub{margin-top:4px;color:var(--muted);font-size:13px}
+
+    .grid{display:grid;gap:14px}
+    .grid.kpis{grid-template-columns:repeat(4,1fr)}
+    .grid.two{grid-template-columns:1fr 1fr}
+    .grid.three{grid-template-columns:1fr 1fr 1fr}
+    .grid.one{grid-template-columns:1fr}
+
+    .card{
+      background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));
+      border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;
+    }
+    .card-head{
+      padding:15px 18px;border-bottom:1px solid var(--border);
+      display:flex;justify-content:space-between;align-items:center;gap:10px;
+    }
+    .card-head h3{margin:0;font-size:15px;font-weight:800}
+    .card-body{padding:18px}
+
+    .pill{
+      display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:999px;
+      font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+      border:1px solid var(--border);color:var(--muted);background:var(--panel2);
+    }
+    .pill.red{color:#ffc0c0;background:rgba(240,107,107,.14)}
+    .pill.orange{color:#ffd3a3;background:rgba(242,166,80,.14)}
+    .pill.green{color:#b4f3cf;background:rgba(67,209,124,.14)}
+    .pill.blue{color:#bad5ff;background:rgba(110,168,255,.14)}
+    .pill.gold{color:#f8dfaa;background:rgba(230,193,115,.14)}
+    .pill.purple{color:#ddceff;background:rgba(169,139,255,.14)}
+    .pill.gray{color:#cdd6e2;background:rgba(255,255,255,.06)}
+
+    .kpi{
+      background:var(--panel);border:1px solid var(--border);
+      border-radius:18px;padding:16px;
+    }
+    .kpi-label{
+      font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+      font-weight:800;margin-bottom:8px;
+    }
+    .kpi-value{
+      font-size:28px;font-weight:800;font-family:var(--mono);margin-bottom:6px;
+    }
+    .kpi-note{font-size:12px;color:var(--muted)}
+    .kpi-yesterday{
+      border-color:rgba(110,168,255,.3);
+      background:linear-gradient(135deg,rgba(110,168,255,.07),rgba(67,209,124,.04));
+    }
+    .kpi-yesterday .kpi-label{color:var(--blue)}
+    .insight{white-space:pre-wrap;line-height:1.7;color:#dce5f2;font-size:14px}
+
+    table{width:100%;border-collapse:collapse}
+    th,td{
+      padding:10px 8px;border-bottom:1px solid var(--border);
+      text-align:left;font-size:12.5px;vertical-align:middle;
+    }
+    th{
+      color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+    }
+    .r{text-align:right}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+    .toolbar .grow{flex:1}
+    .small{font-size:11px;color:var(--muted)}
+    .stats-list{display:grid;gap:10px}
+    .stat-row{
+      display:flex;justify-content:space-between;align-items:center;gap:12px;
+      padding:9px 0;border-bottom:1px solid var(--border);
+    }
+    .stat-row:last-child{border-bottom:0}
+    .bar{
+      width:120px;height:8px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden;
+    }
+    .bar > div{
+      height:100%;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--green));
+    }
+
+    .snap-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .snap-card{
+      border:1px solid var(--border);background:var(--panel);border-radius:14px;padding:14px;
+      transition:transform .15s;
+    }
+    .snap-card:hover{transform:translateY(-2px)}
+    .snap-date{font-size:11px;color:var(--muted);margin-bottom:8px}
+    .snap-value{font-size:20px;font-weight:800;font-family:var(--mono);margin-bottom:8px}
+
+    /* ── Progress bar ── */
+    #topProgressBar{
+      position:fixed;top:0;left:0;width:0;height:3px;z-index:9999;
+      background:linear-gradient(90deg,var(--blue),var(--green));
+      border-radius:0 2px 2px 0;
+      box-shadow:0 0 10px rgba(110,168,255,.5);
+      transition:width .3s ease,opacity .4s ease;
+      pointer-events:none;
+    }
+    #topProgressBar.done{opacity:0}
+
+    /* ── Trend badges ── */
+    .kpi-trend{
+      display:inline-flex;align-items:center;gap:4px;
+      font-size:11px;font-weight:700;font-family:var(--mono);
+      padding:2px 7px;border-radius:999px;margin-top:5px;
+    }
+    .kpi-trend.up{color:#b4f3cf;background:rgba(67,209,124,.13)}
+    .kpi-trend.down{color:#ffc0c0;background:rgba(240,107,107,.13)}
+    .kpi-trend.flat{color:var(--muted);background:rgba(255,255,255,.06)}
+
+    /* ── Sparkline ── */
+    .sparkline-wrap{display:flex;gap:4px;align-items:flex-end;height:56px;padding-top:4px}
+    .spark-col{
+      flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:default;
+    }
+    .spark-bar{
+      width:100%;border-radius:4px 4px 0 0;
+      background:linear-gradient(180deg,var(--blue),rgba(110,168,255,.4));
+      transition:opacity .15s;min-height:3px;
+    }
+    .spark-col:hover .spark-bar{opacity:.7}
+    .spark-label{font-size:9px;color:var(--muted);white-space:nowrap}
+    .spark-today .spark-bar{background:linear-gradient(180deg,var(--green),rgba(67,209,124,.4))}
+    .spark-today .spark-label{color:var(--green);font-weight:700}
+
+    /* ── Insight cards (executive summary) ── */
+    .insight-grid{display:grid;gap:10px}
+    .insight-card{
+      display:flex;gap:12px;align-items:flex-start;
+      padding:12px;border-radius:13px;border:1px solid var(--border);
+      background:rgba(255,255,255,.02);
+    }
+    .insight-card.warn{border-color:rgba(240,107,107,.2);background:rgba(240,107,107,.04)}
+    .insight-card.ok{border-color:rgba(67,209,124,.2);background:rgba(67,209,124,.04)}
+    .insight-card.info{border-color:rgba(110,168,255,.2);background:rgba(110,168,255,.04)}
+    .insight-card.gold{border-color:rgba(230,193,115,.2);background:rgba(230,193,115,.04)}
+    .insight-icon{font-size:18px;flex-shrink:0;line-height:1.3}
+    .insight-body{flex:1;font-size:13px;line-height:1.6;color:#dce5f2}
+    .insight-body strong{color:var(--text)}
+    .insight-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:3px}
+
+    /* ── Days progress bar in critical table ── */
+    .days-bar-wrap{display:flex;align-items:center;gap:6px}
+    .days-bar-track{
+      width:52px;height:6px;border-radius:999px;
+      background:rgba(255,255,255,.07);overflow:hidden;flex-shrink:0;
+    }
+    .days-bar-fill{height:100%;border-radius:999px}
+
+    /* ── ABC donut ── */
+    .abc-donut-wrap{display:flex;align-items:center;gap:20px;padding:4px 0}
+    .abc-legend{flex:1;display:grid;gap:9px}
+    .abc-legend-row{display:flex;align-items:center;gap:8px}
+    .abc-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+    .abc-legend-label{font-size:12px;color:var(--muted)}
+    .abc-legend-val{font-family:var(--mono);font-size:12px;font-weight:700}
+
+    /* ── Alert card hover ── */
+    .alert-card{transition:transform .15s,box-shadow .15s}
+    .alert-card:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(0,0,0,.4)}
+
+    .footer-note{text-align:center;padding:16px 0 6px;font-size:11px;color:var(--muted)}
+
+    @media (max-width:1200px){
+      .grid.kpis{grid-template-columns:repeat(2,1fr)}
+      .grid.two,.grid.three{grid-template-columns:1fr}
+      .snap-grid{grid-template-columns:repeat(2,1fr)}
+      .alert-strip{grid-template-columns:repeat(2,1fr)}
+    }
+    @media (max-width:760px){
+      .topbar-inner,.page{padding-left:14px;padding-right:14px}
+      .alert-strip{grid-template-columns:1fr}
+      .snap-grid{grid-template-columns:1fr}
+      .grid.kpis{grid-template-columns:1fr}
+      .tool-row{flex-direction:column;align-items:stretch}
+      .field.small,.field,.field.big{min-width:0;width:100%;flex:auto}
+    }
+  </style>
+</head>
+<body>
+<div id="topProgressBar"></div>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-badge">📦</div>
+        <div>
+          <div class="brand-title">Manažerský dashboard skladu</div>
+          <div class="brand-sub">WPJShop · kritické &lt; 14 dní · target 30 dní · dead stock &gt; 90 dní · objednávka na celá balení, výstup v kusech</div>
+        </div>
+      </div>
+
+      <div class="chips">
+        <span class="chip" id="statusChip">Stav: startuji</span>
+        <span class="chip" id="lastRunChip">Poslední běh: —</span>
+        <span class="chip">Od: 1. 1. 2025</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="page">
+
+    <div class="sticky-tools">
+      <div class="tool-row">
+        <div class="field big">
+          <label for="workerUrl">Worker URL</label>
+          <input id="workerUrl" value="https://tiande-proxy.rkonfal-rk.workers.dev">
+        </div>
+
+        <div class="field small">
+          <label for="token">Token</label>
+          <input id="token" value="bF5mJwCfTmTyvdda">
+        </div>
+
+        <div class="btns">
+          <button class="blue" id="refreshBtn" type="button">Načíst data</button>
+          <button class="green" id="exportOrderPlanBtn" type="button">Export objednávek</button>
+          <button class="green" id="exportPortfolioBtn" type="button">Export portfolia</button>
+        </div>
+      </div>
+
+      <div class="tool-row">
+        <div class="mode-nav">
+          <button class="secondary mode-btn active" data-mode="cfo" type="button">CFO mód</button>
+          <button class="secondary mode-btn" data-mode="ops" type="button">Operativní mód</button>
+        </div>
+
+        <div class="page-nav">
+          <button class="secondary page-btn active" data-page="finance" type="button">Finance</button>
+          <button class="secondary page-btn" data-page="inventory" type="button">Sklady</button>
+          <button class="secondary page-btn" data-page="purchasing" type="button">Objednávky</button>
+          <button class="secondary page-btn" data-page="portfolio" type="button">Portfolio</button>
+        </div>
+      </div>
+
+      <div class="tool-row">
+        <div class="field">
+          <label for="globalSearch">Globální hledání</label>
+          <input id="globalSearch" placeholder="produkt / kód / status">
+        </div>
+
+        <div class="field small">
+          <label for="virtualFilter">Typ produktů</label>
+          <select id="virtualFilter">
+            <option value="real" selected>Jen reálné</option>
+            <option value="virtual">Jen virtuální</option>
+            <option value="all">Všechny</option>
+          </select>
+        </div>
+
+        <div class="field small">
+          <label for="globalAbcFilter">ABC priorita</label>
+          <select id="globalAbcFilter">
+            <option value="">Vše</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+          </select>
+        </div>
+
+        <div class="field small">
+          <label for="globalStatusFilter">Status skladu</label>
+          <select id="globalStatusFilter">
+            <option value="">Vše</option>
+            <option value="Kritické">Kritické</option>
+            <option value="OK">OK</option>
+            <option value="Nadstock">Nadstock</option>
+            <option value="Dead stock">Dead stock</option>
+          </select>
+        </div>
+
+        <div class="field small">
+          <label for="periodDays">Období pro tempo</label>
+          <select id="periodDays">
+            <option value="30">30 dní</option>
+            <option value="60">60 dní</option>
+            <option value="90" selected>90 dní</option>
+            <option value="180">180 dní</option>
+            <option value="365">365 dní</option>
+          </select>
+        </div>
+
+        <div class="btns">
+          <button class="secondary" id="resetFiltersBtn" type="button">Reset filtrů</button>
+        </div>
+      </div>
+
+      <div class="tool-row">
+        <div class="field big">
+          <label for="packagingMap">Mapa balení (volitelné)</label>
+          <textarea id="packagingMap" placeholder="Vkládej po řádcích třeba:
+144313	1 / 25
+80112/09HM	1 / 24 / 720
+12345=1/12/48
+ABCDE;6"></textarea>
+        </div>
+
+        <div class="field small">
+          <label for="packagingHelp">Pravidlo balení</label>
+          <textarea id="packagingHelp" readonly>Podporované formáty:
+KOD<TAB>1 / 12 / 48
+KOD=1/12/48
+KOD;1/12/48
+
+Použije se vždy největší číslo.
+1/12/48 => 48 ks
+
+Objednávka:
+1) spočítá chybějící kusy do 30 dní
+2) zaokrouhlí nahoru na celé největší balení
+3) zobrazí finální kusy po zaokrouhlení</textarea>
+        </div>
+      </div>
+
+      <div id="errorBox" class="message"></div>
+    </div>
+
+    <div class="alert-strip" id="alertStrip"></div>
+
+    <section class="section active" id="financeSection" data-page="finance">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Finance</div>
+          <div class="section-sub">Obrat, carrying cost, marže a executive shrnutí.</div>
+        </div>
+        <span class="pill green">cash view</span>
+      </div>
+
+      <div class="grid kpis">
+        <div class="kpi"><div class="kpi-label">Produktů</div><div class="kpi-value" id="kpiProducts">—</div><div class="kpi-note" id="kpiProductsNote">—</div></div>
+        <div class="kpi"><div class="kpi-label">Hodnota skladu</div><div class="kpi-value" id="kpiStockValue">—</div><div class="kpi-note" id="kpiStockValueNote">—</div><div id="kpiStockValueTrend"></div></div>
+        <div class="kpi"><div class="kpi-label">MTD obrat</div><div class="kpi-value" id="kpiRevenueMTD">—</div><div class="kpi-note" id="kpiRevenueMTDNote">—</div><div id="kpiRevenueMTDTrend"></div></div>
+        <div class="kpi"><div class="kpi-label">YTD obrat</div><div class="kpi-value" id="kpiRevenueYTD">—</div><div class="kpi-note" id="kpiRevenueYTDNote">—</div><div id="kpiRevenueYTDTrend"></div></div>
+        <div class="kpi kpi-yesterday"><div class="kpi-label">Včerejší obrat</div><div class="kpi-value" id="kpiRevenueYesterday">—</div><div class="kpi-note" id="kpiRevenueYesterdayNote">—</div><div id="kpiYesterdayTrend"></div></div>
+        <div class="kpi"><div class="kpi-label">Prům. hodnota obj.</div><div class="kpi-value" id="kpiAvgOrder">—</div><div class="kpi-note" id="kpiAvgOrderNote">—</div></div>
+        <div class="kpi"><div class="kpi-label">Kritické položky</div><div class="kpi-value" id="kpiCritical">—</div><div class="kpi-note" id="kpiCriticalNote">—</div><div id="kpiCriticalTrend"></div></div>
+        <div class="kpi"><div class="kpi-label">Dead stock</div><div class="kpi-value" id="kpiDead">—</div><div class="kpi-note" id="kpiDeadNote">—</div><div id="kpiDeadTrend"></div></div>
+        <div class="kpi"><div class="kpi-label">Průměr zásob</div><div class="kpi-value" id="kpiAvgDays">—</div><div class="kpi-note" id="kpiAvgDaysNote">—</div></div>
+        <div class="kpi"><div class="kpi-label">Plán nákupů</div><div class="kpi-value" id="kpiOrderCost">—</div><div class="kpi-note" id="kpiOrderCostNote">—</div></div>
+      </div>
+
+      <div class="grid one" style="margin-bottom:14px">
+        <div class="card">
+          <div class="card-head"><h3>Denní obrat – posledních 7 dní</h3><span class="pill blue">sparkline</span></div>
+          <div class="card-body" id="sparklineCard"></div>
+        </div>
+      </div>
+
+      <div class="grid two">
+        <div class="card">
+          <div class="card-head"><h3>Exekutivní shrnutí</h3><span class="pill gold">management</span></div>
+          <div class="card-body">
+            <div class="insight" id="executiveInsight">Načítám data…</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>ABC segmentace podle tržeb</h3><span class="pill purple">ABC</span></div>
+          <div class="card-body">
+            <div class="stats-list" id="abcSummary"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="inventorySection" data-page="inventory">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Sklady</div>
+          <div class="section-sub">Kritické položky &lt; 14 dní, ideální stock 30 dní, dead stock &gt; 90 dní.</div>
+        </div>
+        <span class="pill red">stock risk</span>
+      </div>
+
+      <div class="grid two">
+        <div class="card">
+          <div class="card-head"><h3>Nejrychlejší obrátka</h3><span class="pill blue">turnover</span></div>
+          <div class="card-body">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produkt</th>
+                  <th class="r">Sklad</th>
+                  <th class="r">ks/den</th>
+                  <th class="r">Dny zásoby</th>
+                  <th class="r">ITO/rok</th>
+                </tr>
+              </thead>
+              <tbody id="fastTurnTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Top produkty podle tržeb</h3><span class="pill green">výkon</span></div>
+          <div class="card-body">
+            <div id="topBarsChart"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid two">
+        <div class="card">
+          <div class="card-head"><h3>Kritické produkty</h3><span class="pill red">&lt; 14 dní</span></div>
+          <div class="card-body">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produkt</th>
+                  <th>Kód</th>
+                  <th class="r">Sklad</th>
+                  <th class="r">ks/den</th>
+                  <th class="r">Dny zásoby</th>
+                  <th class="r">Objednat ks</th>
+                  <th>Stav</th>
+                </tr>
+              </thead>
+              <tbody id="criticalTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Dead stock / mrtvý kapitál</h3><span class="pill orange">&gt; 90 dní</span></div>
+          <div class="card-body">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produkt</th>
+                  <th>Kód</th>
+                  <th class="r">Sklad</th>
+                  <th class="r">Dny</th>
+                  <th class="r">Hodnota</th>
+                  <th class="r">Carrying/rok</th>
+                </tr>
+              </thead>
+              <tbody id="deadStockTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="purchasingSection" data-page="purchasing">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Objednávky a doplnění zásob</div>
+          <div class="section-sub">Cílová zásoba je 30 dní. Objednávka se počítá na celá balení, ale zobrazuje se ve finálních kusech.</div>
+        </div>
+        <span class="pill gold">replenishment</span>
+      </div>
+
+      <div class="grid one">
+        <div class="card">
+          <div class="card-head"><h3>Objednávkový plán</h3><span class="pill blue">target 30d + balení, výstup v kusech</span></div>
+          <div class="card-body">
+            <div class="toolbar">
+              <input id="orderPlanSearch" placeholder="Filtrovat produkt / kód" style="max-width:240px">
+              <select id="orderPlanFilter" style="max-width:180px">
+                <option value="">Všechny priority</option>
+                <option value="Kritické">Kritické</option>
+                <option value="OK">OK</option>
+                <option value="Nadstock">Nadstock</option>
+                <option value="Dead stock">Dead stock</option>
+              </select>
+              <span class="grow"></span>
+              <span class="small" id="orderPlanInfo">—</span>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Produkt</th>
+                  <th>Kód</th>
+                  <th>ABC</th>
+                  <th class="r">Sklad</th>
+                  <th class="r">ks/den</th>
+                  <th class="r">ROP</th>
+                  <th class="r">Target 30d</th>
+                  <th class="r">Potřeba ks</th>
+                  <th class="r">Nejv. balení</th>
+                  <th class="r">Objednat ks</th>
+                  <th class="r">Dní po objednání</th>
+                  <th class="r">Investice</th>
+                  <th>Priorita</th>
+                </tr>
+              </thead>
+              <tbody id="orderPlanTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="portfolioSection" data-page="portfolio">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Portfolio</div>
+          <div class="section-sub">ABC, carrying cost, balení a detail produktů.</div>
+        </div>
+        <span class="pill purple">detail</span>
+      </div>
+
+      <div class="grid three">
+        <div class="card">
+          <div class="card-head"><h3>Portfolio mix</h3><span class="pill gray">souhrn</span></div>
+          <div class="card-body" id="riskSummaryBox"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Carrying cost rozpad</h3><span class="pill orange">náklady</span></div>
+          <div class="card-body" id="carryingBreakdown"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Hrubý zisk – odhad</h3><span class="pill green">marže</span></div>
+          <div class="card-body" id="grossProfitBox"></div>
+        </div>
+      </div>
+
+      <div class="grid one">
+        <div class="card">
+          <div class="card-head"><h3>Portfolio produktů</h3><span class="pill gray">tabulka</span></div>
+          <div class="card-body">
+            <div class="toolbar">
+              <input id="portfolioSearch" placeholder="Hledat produkt / kód" style="max-width:220px">
+              <select id="portfolioAbcFilter" style="max-width:140px">
+                <option value="">ABC: vše</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+              <select id="portfolioStatusFilter" style="max-width:180px">
+                <option value="">Status: vše</option>
+                <option value="Kritické">Kritické</option>
+                <option value="OK">OK</option>
+                <option value="Nadstock">Nadstock</option>
+                <option value="Dead stock">Dead stock</option>
+              </select>
+              <span class="grow"></span>
+              <span class="small" id="portfolioInfo">—</span>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Produkt</th>
+                  <th>Kód</th>
+                  <th>ABC</th>
+                  <th>Status</th>
+                  <th class="r">Sklad</th>
+                  <th class="r">Cena</th>
+                  <th class="r">Prodáno</th>
+                  <th class="r">Tržby</th>
+                  <th class="r">ks/den</th>
+                  <th class="r">Dny zásoby</th>
+                  <th class="r">Balení</th>
+                  <th class="r">Hodnota skladu</th>
+                  <th class="r">ITO/rok</th>
+                </tr>
+              </thead>
+              <tbody id="portfolioTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid one">
+        <div class="card">
+          <div class="card-head"><h3>Snapshoty</h3><span class="pill purple">historie</span></div>
+          <div class="card-body">
+            <div class="snap-grid" id="snapGrid"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      Single-file HTML dashboard · kritické &lt; 14 dní · target 30 dní · dead stock &gt; 90 dní · balení zaokrouhlené, výstup v kusech
+    </div>
+  </div>
+
+  <script>
+    const ORDERS_FROM = "2025-01-01T00:00:00";
+    const STORAGE_KEY_SNAPSHOTS = "wpj_dashboard_snapshots_v8";
+    const STORAGE_KEY_PACKAGING = "wpj_dashboard_packaging_v3";
+
+    const APP = {
+      mode: "cfo",
+      page: "finance",
+      data: null,
+      raw: { products: [], orders: [] },
+      filteredOrderPlan: [],
+      filteredPortfolio: []
+    };
+
+    const qs = (id) => document.getElementById(id);
+    const fmtI = (n) => Number(n || 0).toLocaleString("cs-CZ", { maximumFractionDigits: 0 });
+    const fmtN = (n, d = 1) => Number(n || 0).toLocaleString("cs-CZ", { minimumFractionDigits: d, maximumFractionDigits: d });
+    const fmtCZK = (n) => new Intl.NumberFormat("cs-CZ", {
+      style: "currency",
+      currency: "CZK",
+      maximumFractionDigits: 0
+    }).format(Number(n || 0));
+
+    function setStatus(text){
+      qs("statusChip").textContent = text;
+    }
+
+    function setLastRun(){
+      qs("lastRunChip").textContent = "Poslední běh: " + new Date().toLocaleTimeString("cs-CZ", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    function showError(message){
+      const box = qs("errorBox");
+      box.className = "message error";
+      box.textContent = message;
+      box.style.display = "block";
+    }
+
+    function showOk(message){
+      const box = qs("errorBox");
+      box.className = "message ok";
+      box.textContent = message;
+      box.style.display = "block";
+    }
+
+    function clearError(){
+      const box = qs("errorBox");
+      box.textContent = "";
+      box.style.display = "none";
+      box.className = "message";
+    }
+
+    function csvEscape(v){
+      const s = String(v ?? "");
+      return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }
+
+    function downloadText(filename, text, type = "text/csv;charset=utf-8"){
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type }));
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    function getSnapshots(){
+      try{
+        return JSON.parse(localStorage.getItem(STORAGE_KEY_SNAPSHOTS) || "[]");
+      }catch{
+        return [];
+      }
+    }
+
+    function saveSnapshot(metrics){
+      const item = {
+        ts: Date.now(),
+        stockValueTotal: metrics.stockValueTotal,
+        revenueMTD: metrics.revenueMTD,
+        revenueYTD: metrics.revenueYTD,
+        revenueYesterday: metrics.revenueYesterday,
+        ordersYesterdayCount: metrics.ordersYesterdayCount,
+        criticalCount: metrics.critical.length,
+        deadCount: metrics.deadStock.length,
+        orderPlanCost: metrics.orderPlanTotalCost,
+        avgDays: metrics.avgDays,
+        filter: qs("virtualFilter").value
+      };
+      const arr = getSnapshots();
+      arr.unshift(item);
+      localStorage.setItem(STORAGE_KEY_SNAPSHOTS, JSON.stringify(arr.slice(0, 8)));
+    }
+
+    function renderSnapshots(){
+      const el = qs("snapGrid");
+      const snaps = getSnapshots();
+
+      if(!snaps.length){
+        el.innerHTML = '<div class="small">Zatím žádné snapshoty.</div>';
+        return;
+      }
+
+      el.innerHTML = snaps.map((s) => {
+        const filterLabel = s.filter === "real" ? "reálné" : s.filter === "virtual" ? "virtuální" : "vše";
+        return `
+          <div class="snap-card">
+            <div class="snap-date">${new Date(s.ts).toLocaleString("cs-CZ")}</div>
+            <div class="snap-value">${fmtCZK(s.stockValueTotal)}</div>
+            <div class="small">
+              Filtr: ${filterLabel}<br>
+              Včera: ${fmtCZK(s.revenueYesterday || 0)} (${fmtI(s.ordersYesterdayCount || 0)} obj.)<br>
+              MTD: ${fmtCZK(s.revenueMTD)}<br>
+              YTD: ${fmtCZK(s.revenueYTD)}<br>
+              Kritické: ${fmtI(s.criticalCount)} · Dead: ${fmtI(s.deadCount)}<br>
+              Průměr zásob: ${Math.round(s.avgDays || 0)} dní
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function savePackagingMap(text){
+      localStorage.setItem(STORAGE_KEY_PACKAGING, text || "");
+    }
+
+    function loadPackagingMap(){
+      const text = localStorage.getItem(STORAGE_KEY_PACKAGING) || "";
+      qs("packagingMap").value = text;
+    }
+
+    function parsePackagingMap(text){
+      const map = new Map();
+
+      (text || "")
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .forEach(line => {
+          const parts = line.split(/\t|=|;/);
+          if(parts.length < 2) return;
+
+          const code = String(parts[0] || "").trim();
+          const packRaw = String(parts.slice(1).join(" ") || "").trim();
+
+          if(!code || !packRaw) return;
+          map.set(code, packRaw);
+        });
+
+      return map;
+    }
+
+    function biggestPack(raw){
+      if(!raw) return 1;
+      const nums = String(raw)
+        .split(/[^\d]+/)
+        .map(n => Number(n))
+        .filter(n => Number.isFinite(n) && n > 0);
+      return nums.length ? Math.max(...nums) : 1;
+    }
+
+    function getVirtualFilterMode(){
+      return qs("virtualFilter").value;
+    }
+
+    function isVirtualCode(code){
+      const c = String(code || "").trim();
+      if(!c) return false;
+      return /^[A-Za-z]/.test(c);
+    }
+
+    function passesVirtualFilter(code){
+      const mode = getVirtualFilterMode();
+      const virtual = isVirtualCode(code);
+
+      if(mode === "real") return !virtual;
+      if(mode === "virtual") return virtual;
+      return true;
+    }
+
+    async function gql(query, variables = {}){
+      const workerUrl = qs("workerUrl").value.trim();
+      const token = qs("token").value.trim();
+
+      const response = await fetch(workerUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Access-Token": token
+        },
+        body: JSON.stringify({ query, variables })
+      });
+
+      const text = await response.text();
+      let json;
+
+      try{
+        json = JSON.parse(text);
+      }catch{
+        throw new Error("Worker nevrátil validní JSON:\n" + text);
+      }
+
+      if(!response.ok){
+        throw new Error("HTTP " + response.status + "\n" + JSON.stringify(json, null, 2));
+      }
+
+      if(json.errors){
+        throw new Error(json.errors.map(e => e.message).join("\n"));
+      }
+
+      if(!json.data){
+        throw new Error("Chybí data v odpovědi.");
+      }
+
+      return json.data;
+    }
+
+    async function fetchAllProducts(){
+      let offset = 0;
+      const limit = 1000;
+      let all = [];
+      let hasNextPage = true;
+
+      while(hasNextPage){
+        const data = await gql(`
+          query products($offset:Int,$limit:Int){
+            products(offset:$offset,limit:$limit){
+              items{
+                id
+                title
+                code
+                inStore
+                price{ withVat }
+              }
+              hasNextPage
+            }
+          }
+        `, { offset, limit });
+
+        const chunk = data.products.items || [];
+        all = all.concat(chunk);
+        hasNextPage = !!data.products.hasNextPage;
+        offset += limit;
+        if(chunk.length === 0) break;
+      }
+
+      return all;
+    }
+
+    async function fetchAllOrders(){
+      let offset = 0;
+      const limit = 1000;
+      let all = [];
+      let hasNextPage = true;
+
+      while(hasNextPage && all.length < 100000){
+        const data = await gql(`
+          query orders($offset:Int,$limit:Int){
+            orders(offset:$offset,limit:$limit,sort:{dateCreated:DESC}){
+              items{
+                id
+                code
+                dateCreated
+                cancelled
+                totalPrice{ withVat }
+                items{
+                  productId
+                  variationId
+                  type
+                  code
+                  name
+                  pieces
+                  piecePrice{ withVat }
+                  totalPrice{ withVat }
+                }
+              }
+              hasNextPage
+            }
+          }
+        `, { offset, limit });
+
+        const chunk = data.orders.items || [];
+        all = all.concat(chunk);
+        hasNextPage = !!data.orders.hasNextPage;
+        offset += limit;
+        if(chunk.length === 0) break;
+      }
+
+      return all.slice(0, 100000);
+    }
+
+    function analyze(productsRaw, ordersRaw){
+      const periodDays = Number(qs("periodDays").value || 90);
+      const fromDate = new Date(ORDERS_FROM);
+      const now = new Date();
+      const periodFrom = new Date(now);
+      periodFrom.setDate(now.getDate() - periodDays);
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      const yesterdayEnd   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekAgoStart   = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 8);
+      const weekAgoEnd     = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+
+      // Build daily buckets for last 7 days (index 0 = 6 days ago, index 6 = yesterday)
+      const daily7 = Array.from({length: 7}, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7 + i);
+        return { date: d, label: d.toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"}), shortLabel: d.toLocaleDateString("cs-CZ",{weekday:"short"}), revenue: 0, orders: 0 };
+      });
+
+      const leadTime = 14;
+      const serviceFactor = 1.3;
+      const carryingRate = 0.20;
+      const grossMarginPct = 0.40;
+      const criticalDays = 14;
+      const idealStockDays = 30;
+      const deadDays = 90;
+
+      const packagingMap = parsePackagingMap(qs("packagingMap").value);
+      const productMap = new Map();
+
+      productsRaw.forEach((p) => {
+        const code = String(p.code || "").trim();
+        if(!passesVirtualFilter(code)) return;
+
+        const packRaw = packagingMap.get(code) || "1";
+        const largestPack = biggestPack(packRaw);
+
+        productMap.set(String(p.id), {
+          id: p.id,
+          title: p.title || `Produkt ${p.id}`,
+          code: code || `SKU-${p.id}`,
+          stock: Number(p.inStore || 0),
+          price: Number(p.price?.withVat || 0),
+          isVirtual: isVirtualCode(code),
+          packRaw,
+          biggestPack: largestPack
+        });
+      });
+
+      let revenueMTD = 0;
+      let revenueYTD = 0;
+      let revenueYesterday = 0;
+      let revenueWeekAgo = 0;
+      let ordersMTDCount = 0;
+      let ordersYTDCount = 0;
+      let ordersYesterdayCount = 0;
+      let ordersWeekAgoCount = 0;
+      let validOrdersCount = 0;
+      let totalOrderValue = 0;
+      const salesMap = new Map();
+
+      ordersRaw.forEach((order) => {
+        const od = new Date(order.dateCreated);
+        if(od < fromDate) return;
+        if(order.cancelled) return;
+
+        let orderHasIncludedProduct = false;
+        let orderIncludedRevenue = 0;
+
+        (order.items || []).forEach((item) => {
+          if(item.type !== "product") return;
+
+          const key = String(item.productId || "");
+          if(!key || !productMap.has(key)) return;
+
+          orderHasIncludedProduct = true;
+          orderIncludedRevenue += Number(item.totalPrice?.withVat || 0);
+
+          if(od < periodFrom) return;
+
+          const current = salesMap.get(key) || { qty: 0, revenue: 0 };
+          current.qty += Number(item.pieces || 0);
+          current.revenue += Number(item.totalPrice?.withVat || 0);
+          salesMap.set(key, current);
+        });
+
+        if(!orderHasIncludedProduct) return;
+
+        validOrdersCount++;
+        totalOrderValue += orderIncludedRevenue;
+
+        if(od >= monthStart){
+          revenueMTD += orderIncludedRevenue;
+          ordersMTDCount++;
+        }
+
+        if(od >= yesterdayStart && od < yesterdayEnd){
+          revenueYesterday += orderIncludedRevenue;
+          ordersYesterdayCount++;
+        }
+
+        if(od >= weekAgoStart && od < weekAgoEnd){
+          revenueWeekAgo += orderIncludedRevenue;
+          ordersWeekAgoCount++;
+        }
+
+        // daily7: bucket by day index
+        const dayIdx = daily7.findIndex(b => {
+          const bs = b.date;
+          const be = new Date(bs.getFullYear(), bs.getMonth(), bs.getDate() + 1);
+          return od >= bs && od < be;
+        });
+        if(dayIdx >= 0){
+          daily7[dayIdx].revenue += orderIncludedRevenue;
+          daily7[dayIdx].orders++;
+        }
+
+        if(od >= yearStart){
+          revenueYTD += orderIncludedRevenue;
+          ordersYTDCount++;
+        }
+      });
+
+      const products = [];
+
+      for(const p of productMap.values()){
+        const sold = salesMap.get(String(p.id)) || { qty: 0, revenue: 0 };
+        const perDay = sold.qty / Math.max(periodDays, 1);
+        const days = perDay > 0 ? p.stock / perDay : Infinity;
+        const stockValue = p.stock * p.price;
+        const annualCarrying = stockValue * carryingRate;
+        const ito = p.stock > 0 && sold.qty > 0
+          ? (sold.qty / Math.max(p.stock, 1)) * (365 / Math.max(periodDays, 1))
+          : 0;
+
+        const rop = Math.ceil(perDay * leadTime * serviceFactor);
+        const targetQty = Math.ceil(perDay * idealStockDays);
+        const needQty = Math.max(0, targetQty - p.stock);
+
+        const packSize = Math.max(1, p.biggestPack || 1);
+        const orderPacks = needQty > 0 ? Math.ceil(needQty / packSize) : 0;
+        const orderQtyRounded = orderPacks * packSize;
+
+        const stockAfterOrder = p.stock + orderQtyRounded;
+        const daysAfterOrder = perDay > 0 ? stockAfterOrder / perDay : Infinity;
+        const orderInvestment = orderQtyRounded * p.price;
+
+        let status = "OK";
+        if (p.stock > 0 && days > deadDays) {
+          status = "Dead stock";
+        } else if (days < criticalDays) {
+          status = "Kritické";
+        } else if (days <= idealStockDays) {
+          status = "OK";
+        } else {
+          status = "Nadstock";
+        }
+
+        products.push({
+          ...p,
+          qtySold: sold.qty,
+          revenue: sold.revenue,
+          perDay,
+          days,
+          stockValue,
+          annualCarrying,
+          ito,
+          rop,
+          target: targetQty,
+          needQty,
+          packSize,
+          orderPacks,
+          orderQtyRounded,
+          stockAfterOrder,
+          daysAfterOrder,
+          orderInvestment,
+          abc: "C",
+          status
+        });
+      }
+
+      products.sort((a, b) => b.revenue - a.revenue);
+
+      const totalRevenue = products.reduce((a, p) => a + p.revenue, 0);
+      let cumulative = 0;
+
+      products.forEach((p) => {
+        cumulative += p.revenue;
+        const share = totalRevenue > 0 ? cumulative / totalRevenue : 0;
+        p.abc = share <= 0.80 ? "A" : share <= 0.95 ? "B" : "C";
+      });
+
+      const critical = products.filter(p => p.status === "Kritické").sort((a,b) => a.days - b.days);
+      const deadStock = products.filter(p => p.status === "Dead stock").sort((a,b) => b.stockValue - a.stockValue);
+      const topProducts = products.filter(p => p.revenue > 0).slice(0, 10);
+      const fastTurn = products.filter(p => p.qtySold > 0).sort((a,b) => b.ito - a.ito).slice(0, 10);
+      const orderPlan = products
+        .filter(p => p.orderQtyRounded > 0)
+        .sort((a,b) => {
+          const rank = { Kritické: 0, OK: 1, Nadstock: 2, "Dead stock": 3 };
+          return (rank[a.status] - rank[b.status]) || (b.orderInvestment - a.orderInvestment);
+        });
+
+      const abcSummary = ["A","B","C"].map((group) => {
+        const arr = products.filter(p => p.abc === group);
+        return {
+          group,
+          count: arr.length,
+          revenue: arr.reduce((a,p) => a + p.revenue, 0),
+          stockValue: arr.reduce((a,p) => a + p.stockValue, 0)
+        };
+      });
+
+      const active = products.filter(p => Number.isFinite(p.days) && p.qtySold > 0);
+      const avgDays = active.length ? active.reduce((a,p) => a + p.days, 0) / active.length : 0;
+      const stockValueTotal = products.reduce((a,p) => a + p.stockValue, 0);
+      const totalCarrying = products.reduce((a,p) => a + p.annualCarrying, 0);
+      const orderPlanTotalCost = orderPlan.reduce((a,p) => a + p.orderInvestment, 0);
+      const totalGrossProfit = revenueYTD * grossMarginPct;
+
+      const avgOrderValue = validOrdersCount > 0 ? totalOrderValue / validOrdersCount : 0;
+
+      return {
+        periodDays,
+        idealStockDays,
+        deadDays,
+        criticalDays,
+        products,
+        validOrdersCount,
+        ordersMTDCount,
+        ordersYTDCount,
+        ordersYesterdayCount,
+        ordersWeekAgoCount,
+        revenueMTD,
+        revenueYTD,
+        revenueYesterday,
+        revenueWeekAgo,
+        avgOrderValue,
+        daily7,
+        stockValueTotal,
+        totalCarrying,
+        orderPlanTotalCost,
+        totalGrossProfit,
+        critical,
+        deadStock,
+        topProducts,
+        fastTurn,
+        orderPlan,
+        abcSummary,
+        avgDays
+      };
+    }
+
+    function abcPill(abc){
+      const cls = abc === "A" ? "red" : abc === "B" ? "blue" : "gray";
+      return `<span class="pill ${cls}">${abc}</span>`;
+    }
+
+    function statusPill(status){
+      if(status === "Kritické") return '<span class="pill red">Kritické</span>';
+      if(status === "Nadstock") return '<span class="pill blue">Nadstock</span>';
+      if(status === "Dead stock") return '<span class="pill orange">Dead stock</span>';
+      return '<span class="pill green">OK</span>';
+    }
+
+    function renderAlerts(m){
+      const deadValue = m.deadStock.reduce((a,p) => a + p.stockValue, 0);
+      const filterLabel = getVirtualFilterMode() === "real" ? "reálné" : getVirtualFilterMode() === "virtual" ? "virtuální" : "vše";
+
+      qs("alertStrip").innerHTML = `
+        <div class="alert-card red" data-target-page="inventory">
+          <div>
+            <div class="alert-title">Kritické produkty</div>
+            <div class="alert-value">${fmtI(m.critical.length)}</div>
+          </div>
+          <div class="alert-note">&lt; ${m.criticalDays} dní zásoby</div>
+        </div>
+
+        <div class="alert-card orange" data-target-page="portfolio">
+          <div>
+            <div class="alert-title">Dead stock</div>
+            <div class="alert-value">${fmtCZK(deadValue)}</div>
+          </div>
+          <div class="alert-note">&gt; ${m.deadDays} dní zásoby</div>
+        </div>
+
+        <div class="alert-card gold" data-target-page="purchasing">
+          <div>
+            <div class="alert-title">Target stock</div>
+            <div class="alert-value">${m.idealStockDays} dní</div>
+          </div>
+          <div class="alert-note">výstup v kusech</div>
+        </div>
+
+        <div class="alert-card blue" data-target-page="finance">
+          <div>
+            <div class="alert-title">Včerejší obrat</div>
+            <div class="alert-value">${fmtCZK(m.revenueYesterday)}</div>
+          </div>
+          <div class="alert-note">${fmtI(m.ordersYesterdayCount)} objednávek</div>
+        </div>
+      `;
+
+      document.querySelectorAll("[data-target-page]").forEach((el) => {
+        el.addEventListener("click", () => setPage(el.dataset.targetPage));
+      });
+    }
+
+    function trendBadge(current, prev, invertGood = false){
+      if(!prev || prev === 0) return "";
+      const pct = ((current - prev) / Math.abs(prev)) * 100;
+      if(Math.abs(pct) < 0.5) return `<div class="kpi-trend flat">→ bez změny</div>`;
+      const isGood = invertGood ? pct < 0 : pct > 0;
+      const cls = isGood ? "up" : "down";
+      const arrow = pct > 0 ? "↑" : "↓";
+      return `<div class="kpi-trend ${cls}">${arrow} ${Math.abs(pct).toFixed(1)} % vs. předchozí</div>`;
+    }
+
+    function renderKPIs(m){
+      const snaps = getSnapshots();
+      const prev = snaps.length > 1 ? snaps[1] : null;
+
+      qs("kpiProducts").textContent = fmtI(m.products.length);
+      qs("kpiProductsNote").textContent = fmtI(m.validOrdersCount) + " objednávek po filtru";
+
+      qs("kpiStockValue").textContent = fmtCZK(m.stockValueTotal);
+      qs("kpiStockValueNote").textContent = "aktuální hodnota zásob";
+      qs("kpiStockValueTrend").innerHTML = prev ? trendBadge(m.stockValueTotal, prev.stockValueTotal) : "";
+
+      qs("kpiRevenueMTD").textContent = fmtCZK(m.revenueMTD);
+      qs("kpiRevenueMTDNote").textContent = fmtI(m.ordersMTDCount) + " objednávek";
+      qs("kpiRevenueMTDTrend").innerHTML = prev ? trendBadge(m.revenueMTD, prev.revenueMTD) : "";
+
+      qs("kpiRevenueYTD").textContent = fmtCZK(m.revenueYTD);
+      qs("kpiRevenueYTDNote").textContent = fmtI(m.ordersYTDCount) + " objednávek";
+      qs("kpiRevenueYTDTrend").innerHTML = prev ? trendBadge(m.revenueYTD, prev.revenueYTD) : "";
+
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayLabel = yesterday.toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" });
+      qs("kpiRevenueYesterday").textContent = fmtCZK(m.revenueYesterday);
+      qs("kpiRevenueYesterdayNote").textContent = fmtI(m.ordersYesterdayCount) + " obj. · " + yesterdayLabel;
+      if(m.revenueWeekAgo > 0){
+        const pctWow = ((m.revenueYesterday - m.revenueWeekAgo) / m.revenueWeekAgo) * 100;
+        const wow = pctWow >= 0 ? `↑ ${pctWow.toFixed(1)} %` : `↓ ${Math.abs(pctWow).toFixed(1)} %`;
+        const cls = pctWow >= 0 ? "up" : "down";
+        qs("kpiYesterdayTrend").innerHTML = `<div class="kpi-trend ${cls}">${wow} vs. min. týden</div>`;
+      }
+
+      qs("kpiAvgOrder").textContent = fmtCZK(m.avgOrderValue);
+      qs("kpiAvgOrderNote").textContent = "průměrná objednávka (YTD)";
+
+      qs("kpiCritical").textContent = fmtI(m.critical.length);
+      qs("kpiCriticalNote").textContent = "< " + m.criticalDays + " dní zásoby";
+      qs("kpiCriticalTrend").innerHTML = prev ? trendBadge(m.critical.length, prev.criticalCount, true) : "";
+
+      qs("kpiDead").textContent = fmtI(m.deadStock.length);
+      qs("kpiDeadNote").textContent = fmtCZK(m.deadStock.reduce((a,p) => a + p.stockValue, 0));
+      qs("kpiDeadTrend").innerHTML = prev ? trendBadge(m.deadStock.length, prev.deadCount, true) : "";
+
+      qs("kpiAvgDays").textContent = Math.round(m.avgDays) + " dní";
+      qs("kpiAvgDaysNote").textContent = "průměr aktivních položek";
+
+      qs("kpiOrderCost").textContent = fmtCZK(m.orderPlanTotalCost);
+      qs("kpiOrderCostNote").textContent = fmtI(m.orderPlan.length) + " položek";
+    }
+
+    function renderSparkline(m){
+      const maxRev = Math.max(...m.daily7.map(d => d.revenue), 1);
+      const totalWeek = m.daily7.reduce((a, d) => a + d.revenue, 0);
+      const avgDay = totalWeek / 7;
+
+      const bars = m.daily7.map((d, i) => {
+        const isYesterday = i === 6;
+        const heightPct = Math.max(4, Math.round((d.revenue / maxRev) * 100));
+        return `
+          <div class="spark-col ${isYesterday ? "spark-today" : ""}" title="${d.label}: ${fmtCZK(d.revenue)} · ${fmtI(d.orders)} obj.">
+            <div class="spark-bar" style="height:${heightPct}%"></div>
+            <div class="spark-label">${d.shortLabel}</div>
+          </div>
+        `;
+      }).join("");
+
+      qs("sparklineCard").innerHTML = `
+        <div style="display:flex;align-items:flex-start;gap:24px">
+          <div style="flex:1">
+            <div class="sparkline-wrap">${bars}</div>
+          </div>
+          <div style="display:grid;gap:8px;min-width:160px;text-align:right">
+            <div>
+              <div class="small">Celkem 7 dní</div>
+              <div style="font-size:18px;font-weight:800;font-family:var(--mono)">${fmtCZK(totalWeek)}</div>
+            </div>
+            <div>
+              <div class="small">Denní průměr</div>
+              <div style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--blue)">${fmtCZK(avgDay)}</div>
+            </div>
+            <div>
+              <div class="small">Včera</div>
+              <div style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--green)">${fmtCZK(m.revenueYesterday)}</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">Zelený sloupec = včerejší den · najeď myší pro detail</div>
+      `;
+    }
+
+    function renderExecutiveSummary(m){
+      const deadValue = m.deadStock.reduce((a,p) => a + p.stockValue, 0);
+      const filterLabel = getVirtualFilterMode() === "real" ? "reálné" : getVirtualFilterMode() === "virtual" ? "virtuální" : "všechny";
+      const criticalRisk = m.critical.reduce((a,p) => a + (p.perDay * p.price * 7), 0);
+      const wowLabel = m.revenueWeekAgo > 0
+        ? (() => { const p = ((m.revenueYesterday - m.revenueWeekAgo) / m.revenueWeekAgo * 100); return (p >= 0 ? "↑ +" : "↓ ") + p.toFixed(1) + " % vs. stejný den min. týden"; })()
+        : null;
+
+      const cards = [
+        {
+          type: m.revenueYesterday > 0 ? "ok" : "info", icon: "📈", label: "Obrat včera",
+          text: `<strong>${fmtCZK(m.revenueYesterday)}</strong> z ${fmtI(m.ordersYesterdayCount)} objednávek.${wowLabel ? " <strong>" + wowLabel + "</strong>" : ""} Denní průměr (7d): ${fmtCZK(m.daily7.reduce((a,d)=>a+d.revenue,0)/7)}.`
+        },
+        {
+          type: "info", icon: "💰", label: "Tržby",
+          text: `YTD <strong>${fmtCZK(m.revenueYTD)}</strong> (${fmtI(m.ordersYTDCount)} obj.) · MTD <strong>${fmtCZK(m.revenueMTD)}</strong> (${fmtI(m.ordersMTDCount)} obj.) · průměrná objednávka <strong>${fmtCZK(m.avgOrderValue)}</strong>.`
+        },
+        {
+          type: "info", icon: "🏭", label: "Sklad & marže",
+          text: `Hodnota zásob <strong>${fmtCZK(m.stockValueTotal)}</strong> · roční carrying cost <strong>${fmtCZK(m.totalCarrying)}</strong> · odhadovaný hrubý zisk YTD <strong>${fmtCZK(m.totalGrossProfit)}</strong> (marže 40 %).`
+        },
+        {
+          type: m.critical.length > 0 ? "warn" : "ok", icon: m.critical.length > 0 ? "🚨" : "✅", label: "Kritické zásoby",
+          text: m.critical.length > 0
+            ? `<strong>${fmtI(m.critical.length)}</strong> produktů pod ${m.criticalDays} dní. Odhadovaná ztráta tržeb za 7 dní: <strong>${fmtCZK(criticalRisk)}</strong>.`
+            : `Žádné kritické produkty. Průměrná zásoba <strong>${Math.round(m.avgDays)} dní</strong>.`
+        },
+        {
+          type: deadValue > 0 ? "warn" : "ok", icon: "🪦", label: "Dead stock",
+          text: deadValue > 0
+            ? `<strong>${fmtI(m.deadStock.length)}</strong> položek váže <strong>${fmtCZK(deadValue)}</strong> déle než ${m.deadDays} dní. Carrying cost mrtvého kapitálu: <strong>${fmtCZK(deadValue * 0.20)}/rok</strong>.`
+            : `Žádný dead stock — kapitál je v pohybu.`
+        },
+        {
+          type: "gold", icon: "🛒", label: "Nákupní plán",
+          text: `<strong>${fmtI(m.orderPlan.length)}</strong> produktů k objednání za <strong>${fmtCZK(m.orderPlanTotalCost)}</strong>. Cílová zásoba ${m.idealStockDays} dní · ${filterLabel} produkty.`
+        }
+      ];
+
+      qs("executiveInsight").innerHTML = `<div class="insight-grid">${cards.map(c => `
+        <div class="insight-card ${c.type}">
+          <div class="insight-icon">${c.icon}</div>
+          <div class="insight-body"><div class="insight-label">${c.label}</div>${c.text}</div>
+        </div>`).join("")}</div>`;
+    }
+
+    function renderABCSummary(m){
+      const totalRevenue = m.abcSummary.reduce((a,g) => a + g.revenue, 0) || 1;
+      const colors = { A: "#f06b6b", B: "#6ea8ff", C: "#93a0b5" };
+      const R = 40, cx = 50, cy = 50, stroke = 20, circ = 2 * Math.PI * R;
+      let offset = 0;
+      const arcs = m.abcSummary.map(g => {
+        const pct = g.revenue / totalRevenue;
+        const dash = pct * circ;
+        const arc = { group: g.group, pct, dash, offset };
+        offset += dash;
+        return arc;
+      });
+      const svgArcs = arcs.map(a => `
+        <circle cx="${cx}" cy="${cy}" r="${R}" fill="none"
+          stroke="${colors[a.group]}" stroke-width="${stroke}" opacity=".85"
+          stroke-dasharray="${a.dash.toFixed(2)} ${(circ - a.dash).toFixed(2)}"
+          stroke-dashoffset="${(-a.offset).toFixed(2)}"
+          transform="rotate(-90 ${cx} ${cy})"/>
+      `).join("");
+
+      qs("abcSummary").innerHTML = `
+        <div class="abc-donut-wrap">
+          <svg width="100" height="100" viewBox="0 0 100 100" style="flex-shrink:0">
+            <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="${stroke}"/>
+            ${svgArcs}
+            <text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="10" fill="#93a0b5" font-family="DM Sans,sans-serif" font-weight="700">ABC</text>
+          </svg>
+          <div class="abc-legend">
+            ${m.abcSummary.map(g => {
+              const pct = Math.round((g.revenue / totalRevenue) * 100);
+              return `<div class="abc-legend-row">
+                <div class="abc-legend-dot" style="background:${colors[g.group]}"></div>
+                <div style="flex:1">${abcPill(g.group)} <span class="abc-legend-label">${fmtI(g.count)} prod.</span></div>
+                <div class="abc-legend-val" style="color:${colors[g.group]}">${pct} %</div>
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-left:18px;margin-top:-4px">${fmtCZK(g.revenue)} tržeb · sklad ${fmtCZK(g.stockValue)}</div>`;
+            }).join("")}
+          </div>
+        </div>`;
+    }
+
+    function renderFastTurn(m){
+      qs("fastTurnTable").innerHTML = m.fastTurn.map((p) => `
+        <tr>
+          <td>${p.title}</td>
+          <td class="r mono">${fmtI(p.stock)}</td>
+          <td class="r mono">${fmtN(p.perDay, 2)}</td>
+          <td class="r mono">${Number.isFinite(p.days) ? Math.round(p.days) : "∞"}</td>
+          <td class="r mono">${fmtN(p.ito, 1)}</td>
+        </tr>
+      `).join("") || '<tr><td colspan="5" class="small">Bez dat.</td></tr>';
+    }
+
+    function renderTopProducts(m){
+      const maxRevenue = m.topProducts[0]?.revenue || 1;
+      qs("topBarsChart").innerHTML = m.topProducts.map((p) => {
+        const pct = Math.round((p.revenue / maxRevenue) * 100);
+        return `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <div style="width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title}</div>
+            <div style="flex:1;height:12px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden">
+              <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:999px"></div>
+            </div>
+            <div class="mono" style="width:110px;text-align:right">${fmtCZK(p.revenue)}</div>
+          </div>
+        `;
+      }).join("") || '<div class="small">Bez dat.</div>';
+    }
+
+    function renderCritical(m){
+      qs("criticalTable").innerHTML = m.critical
+        .slice(0, 20)
+        .map((p) => {
+          const daysVal = Number.isFinite(p.days) ? Math.round(p.days) : m.criticalDays;
+          const barPct = Math.min(100, Math.round((daysVal / m.criticalDays) * 100));
+          const barColor = daysVal <= 3 ? "var(--red)" : daysVal <= 7 ? "var(--orange)" : "var(--gold)";
+          return `
+          <tr>
+            <td>${p.title}</td>
+            <td class="mono">${p.code}</td>
+            <td class="r mono">${fmtI(p.stock)}</td>
+            <td class="r mono">${fmtN(p.perDay, 2)}</td>
+            <td class="r">
+              <div class="days-bar-wrap" style="justify-content:flex-end">
+                <div class="days-bar-track">
+                  <div class="days-bar-fill" style="width:${barPct}%;background:${barColor}"></div>
+                </div>
+                <span class="mono" style="color:${barColor};min-width:28px;text-align:right">${Number.isFinite(p.days) ? Math.round(p.days) : "∞"}</span>
+              </div>
+            </td>
+            <td class="r mono">${fmtI(p.orderQtyRounded)}</td>
+            <td>${statusPill(p.status)}</td>
+          </tr>`;
+        }).join("") || '<tr><td colspan="7" class="small">Žádné kritické položky.</td></tr>';
+    }
+
+    function renderDeadStock(m){
+      qs("deadStockTable").innerHTML = m.deadStock.slice(0, 20).map((p) => `
+        <tr>
+          <td>${p.title}</td>
+          <td class="mono">${p.code}</td>
+          <td class="r mono">${fmtI(p.stock)}</td>
+          <td class="r mono">${Number.isFinite(p.days) ? Math.round(p.days) : "∞"}</td>
+          <td class="r mono">${fmtCZK(p.stockValue)}</td>
+          <td class="r mono">${fmtCZK(p.annualCarrying)}</td>
+        </tr>
+      `).join("") || '<tr><td colspan="6" class="small">Žádný dead stock.</td></tr>';
+    }
+
+    function getGlobalFilters(){
+      return {
+        q: qs("globalSearch").value.trim().toLowerCase(),
+        abc: qs("globalAbcFilter").value,
+        status: qs("globalStatusFilter").value
+      };
+    }
+
+    function applyOrderPlanFilters(){
+      if(!APP.data) return;
+
+      const ownQuery = qs("orderPlanSearch").value.trim().toLowerCase();
+      const ownStatus = qs("orderPlanFilter").value;
+      const global = getGlobalFilters();
+
+      APP.filteredOrderPlan = APP.data.orderPlan.filter((p) => {
+        const text = (ownQuery || global.q);
+        const abc = global.abc;
+        const status = ownStatus || global.status;
+
+        const matchText = !text ||
+          p.title.toLowerCase().includes(text) ||
+          p.code.toLowerCase().includes(text) ||
+          p.status.toLowerCase().includes(text);
+
+        const matchAbc = !abc || p.abc === abc;
+        const matchStatus = !status || p.status === status;
+
+        return matchText && matchAbc && matchStatus;
+      });
+
+      qs("orderPlanInfo").textContent = fmtI(APP.filteredOrderPlan.length) + " položek";
+
+      qs("orderPlanTable").innerHTML = APP.filteredOrderPlan.map((p) => `
+        <tr>
+          <td>${p.title}</td>
+          <td class="mono">${p.code}</td>
+          <td>${abcPill(p.abc)}</td>
+          <td class="r mono">${fmtI(p.stock)}</td>
+          <td class="r mono">${fmtN(p.perDay, 2)}</td>
+          <td class="r mono">${fmtI(p.rop)}</td>
+          <td class="r mono">${fmtI(p.target)}</td>
+          <td class="r mono">${fmtI(Math.ceil(p.needQty))}</td>
+          <td class="r mono">${fmtI(p.packSize)}</td>
+          <td class="r mono">${fmtI(p.orderQtyRounded)}</td>
+          <td class="r mono">${Number.isFinite(p.daysAfterOrder) ? fmtN(p.daysAfterOrder, 1) : "∞"}</td>
+          <td class="r mono">${fmtCZK(p.orderInvestment)}</td>
+          <td>${statusPill(p.status)}</td>
+        </tr>
+      `).join("") || '<tr><td colspan="13" class="small">Nic neodpovídá filtru.</td></tr>';
+    }
+
+    function applyPortfolioFilters(){
+      if(!APP.data) return;
+
+      const ownQuery = qs("portfolioSearch").value.trim().toLowerCase();
+      const ownAbc = qs("portfolioAbcFilter").value;
+      const ownStatus = qs("portfolioStatusFilter").value;
+      const global = getGlobalFilters();
+
+      APP.filteredPortfolio = APP.data.products.filter((p) => {
+        const text = (ownQuery || global.q);
+        const abc = ownAbc || global.abc;
+        const status = ownStatus || global.status;
+
+        const matchText = !text ||
+          p.title.toLowerCase().includes(text) ||
+          p.code.toLowerCase().includes(text) ||
+          p.status.toLowerCase().includes(text);
+
+        const matchAbc = !abc || p.abc === abc;
+        const matchStatus = !status || p.status === status;
+
+        return matchText && matchAbc && matchStatus;
+      });
+
+      qs("portfolioInfo").textContent = fmtI(APP.filteredPortfolio.length) + " položek";
+
+      qs("portfolioTable").innerHTML = APP.filteredPortfolio
+        .sort((a,b) => b.revenue - a.revenue)
+        .map((p) => `
+          <tr>
+            <td>${p.title}</td>
+            <td class="mono">${p.code}</td>
+            <td>${abcPill(p.abc)}</td>
+            <td>${statusPill(p.status)}</td>
+            <td class="r mono">${fmtI(p.stock)}</td>
+            <td class="r mono">${fmtCZK(p.price)}</td>
+            <td class="r mono">${fmtI(p.qtySold)}</td>
+            <td class="r mono">${fmtCZK(p.revenue)}</td>
+            <td class="r mono">${fmtN(p.perDay, 2)}</td>
+            <td class="r mono">${Number.isFinite(p.days) ? Math.round(p.days) : "∞"}</td>
+            <td class="r mono">${fmtI(p.packSize)}</td>
+            <td class="r mono">${fmtCZK(p.stockValue)}</td>
+            <td class="r mono">${fmtN(p.ito, 1)}</td>
+          </tr>
+        `).join("") || '<tr><td colspan="13" class="small">Nic neodpovídá filtru.</td></tr>';
+    }
+
+    function renderRiskSummary(m){
+      const total = m.products.length || 1;
+      qs("riskSummaryBox").innerHTML = `
+        <div class="stats-list">
+          <div class="stat-row"><div>Kritické</div><div><strong>${fmtI(m.critical.length)}</strong> <span class="small">(${Math.round(m.critical.length/total*100)}%)</span></div></div>
+          <div class="stat-row"><div>OK</div><div><strong>${fmtI(m.products.filter(p => p.status === "OK").length)}</strong></div></div>
+          <div class="stat-row"><div>Nadstock</div><div><strong>${fmtI(m.products.filter(p => p.status === "Nadstock").length)}</strong></div></div>
+          <div class="stat-row"><div>Dead stock</div><div><strong>${fmtI(m.deadStock.length)}</strong></div></div>
+        </div>
+      `;
+    }
+
+    function renderCarryingBreakdown(m){
+      qs("carryingBreakdown").innerHTML = `
+        <div class="stats-list">
+          ${m.abcSummary.map((g) => `
+            <div class="stat-row">
+              <div>Segment ${g.group}</div>
+              <div class="mono">${fmtCZK(g.stockValue * 0.20)}</div>
+            </div>
+          `).join("")}
+          <div class="stat-row">
+            <div>Celkem</div>
+            <div class="mono">${fmtCZK(m.totalCarrying)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderGrossProfit(m){
+      qs("grossProfitBox").innerHTML = `
+        <div class="stats-list">
+          <div class="stat-row"><div>MTD GP</div><div class="mono">${fmtCZK(m.revenueMTD * 0.40)}</div></div>
+          <div class="stat-row"><div>YTD GP</div><div class="mono">${fmtCZK(m.totalGrossProfit)}</div></div>
+          <div class="stat-row"><div>Marže</div><div class="mono">40 %</div></div>
+        </div>
+      `;
+    }
+
+    function setPage(page){
+      APP.page = page;
+      document.querySelectorAll(".section").forEach((el) => {
+        el.classList.toggle("active", el.dataset.page === page);
+      });
+      document.querySelectorAll(".page-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.page === page);
+      });
+    }
+
+    function setMode(mode){
+      APP.mode = mode;
+      document.querySelectorAll(".mode-btn").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.mode === mode);
+      });
+      if(mode === "cfo"){
+        setPage("finance");
+      }else{
+        setPage("inventory");
+      }
+    }
+
+    function exportOrderPlan(){
+      if(!APP.filteredOrderPlan.length) return;
+
+      const rows = [[
+        "Produkt","Kód","ABC","Sklad","KsDen","ROP","Target30d","PotrebaKs",
+        "NejvetsiBaleni","ObjednatKs","DniPoObjednani","Investice","Priorita","Virtualni"
+      ]];
+
+      APP.filteredOrderPlan.forEach((p) => {
+        rows.push([
+          p.title,
+          p.code,
+          p.abc,
+          p.stock,
+          p.perDay.toFixed(2),
+          p.rop,
+          p.target,
+          Math.ceil(p.needQty),
+          p.packSize,
+          p.orderQtyRounded,
+          Number.isFinite(p.daysAfterOrder) ? p.daysAfterOrder.toFixed(1) : "INF",
+          Math.round(p.orderInvestment),
+          p.status,
+          p.isVirtual ? "ANO" : "NE"
+        ]);
+      });
+
+      downloadText("objednavkovy_plan.csv", rows.map(r => r.map(csvEscape).join(";")).join("\n"));
+    }
+
+    function exportPortfolio(){
+      if(!APP.filteredPortfolio.length) return;
+
+      const rows = [[
+        "Produkt","Kód","ABC","Status","Sklad","Cena","Prodano","Trzby","KsDen",
+        "DnyZasoby","Baleni","HodnotaSkladu","ITORok","Virtualni"
+      ]];
+
+      APP.filteredPortfolio.forEach((p) => {
+        rows.push([
+          p.title,
+          p.code,
+          p.abc,
+          p.status,
+          p.stock,
+          p.price,
+          p.qtySold,
+          Math.round(p.revenue),
+          p.perDay.toFixed(2),
+          Number.isFinite(p.days) ? Math.round(p.days) : "INF",
+          p.packSize,
+          Math.round(p.stockValue),
+          p.ito.toFixed(1),
+          p.isVirtual ? "ANO" : "NE"
+        ]);
+      });
+
+      downloadText("portfolio.csv", rows.map(r => r.map(csvEscape).join(";")).join("\n"));
+    }
+
+    function renderAllFromRaw(saveSnap = false){
+      if(!APP.raw.products.length && !APP.raw.orders.length) return;
+
+      savePackagingMap(qs("packagingMap").value);
+
+      const metrics = analyze(APP.raw.products, APP.raw.orders);
+      APP.data = metrics;
+
+      renderAlerts(metrics);
+      renderKPIs(metrics);
+      renderSparkline(metrics);
+      renderExecutiveSummary(metrics);
+      renderABCSummary(metrics);
+      renderFastTurn(metrics);
+      renderTopProducts(metrics);
+      renderCritical(metrics);
+      renderDeadStock(metrics);
+      renderRiskSummary(metrics);
+      renderCarryingBreakdown(metrics);
+      renderGrossProfit(metrics);
+
+      applyOrderPlanFilters();
+      applyPortfolioFilters();
+
+      if(saveSnap){
+        saveSnapshot(metrics);
+        renderSnapshots();
+      }
+    }
+
+    function bindEvents(){
+      document.querySelectorAll(".mode-btn").forEach((btn) => {
+        btn.addEventListener("click", () => setMode(btn.dataset.mode));
+      });
+
+      document.querySelectorAll(".page-btn").forEach((btn) => {
+        btn.addEventListener("click", () => setPage(btn.dataset.page));
+      });
+
+      qs("refreshBtn").addEventListener("click", run);
+      qs("exportOrderPlanBtn").addEventListener("click", exportOrderPlan);
+      qs("exportPortfolioBtn").addEventListener("click", exportPortfolio);
+
+      qs("globalSearch").addEventListener("input", () => { applyOrderPlanFilters(); applyPortfolioFilters(); });
+      qs("globalAbcFilter").addEventListener("change", () => { applyOrderPlanFilters(); applyPortfolioFilters(); });
+      qs("globalStatusFilter").addEventListener("change", () => { applyOrderPlanFilters(); applyPortfolioFilters(); });
+
+      qs("periodDays").addEventListener("change", () => renderAllFromRaw(true));
+      qs("virtualFilter").addEventListener("change", () => renderAllFromRaw(true));
+      qs("packagingMap").addEventListener("change", () => renderAllFromRaw(true));
+      qs("packagingMap").addEventListener("blur", () => renderAllFromRaw(true));
+
+      qs("orderPlanSearch").addEventListener("input", applyOrderPlanFilters);
+      qs("orderPlanFilter").addEventListener("change", applyOrderPlanFilters);
+
+      qs("portfolioSearch").addEventListener("input", applyPortfolioFilters);
+      qs("portfolioAbcFilter").addEventListener("change", applyPortfolioFilters);
+      qs("portfolioStatusFilter").addEventListener("change", applyPortfolioFilters);
+
+      qs("resetFiltersBtn").addEventListener("click", () => {
+        qs("globalSearch").value = "";
+        qs("globalAbcFilter").value = "";
+        qs("globalStatusFilter").value = "";
+        qs("orderPlanSearch").value = "";
+        qs("orderPlanFilter").value = "";
+        qs("portfolioSearch").value = "";
+        qs("portfolioAbcFilter").value = "";
+        qs("portfolioStatusFilter").value = "";
+        qs("virtualFilter").value = "real";
+        qs("periodDays").value = "90";
+        renderAllFromRaw(true);
+      });
+    }
+
+    function pbSet(pct){
+      const pb = qs("topProgressBar");
+      pb.style.opacity = "1";
+      pb.style.width = pct + "%";
+      pb.classList.remove("done");
+    }
+    function pbDone(){
+      qs("topProgressBar").style.width = "100%";
+      setTimeout(() => qs("topProgressBar").classList.add("done"), 300);
+    }
+
+    async function run(){
+      clearError();
+      setStatus("Stav: načítám…");
+      qs("refreshBtn").disabled = true;
+      pbSet(5);
+
+      try{
+        savePackagingMap(qs("packagingMap").value);
+        pbSet(15);
+
+        const [products, orders] = await Promise.all([
+          fetchAllProducts(),
+          fetchAllOrders()
+        ]);
+
+        pbSet(80);
+        APP.raw.products = products;
+        APP.raw.orders = orders;
+
+        renderAllFromRaw(true);
+        pbDone();
+
+        setStatus("Stav: live data");
+        setLastRun();
+        showOk(`Načteno:
+- produkty: ${fmtI(products.length)}
+- objednávky: ${fmtI(orders.length)}
+- objednávkový plán: ${fmtI(APP.data.orderPlan.length)} položek`);
+      }catch(err){
+        console.error(err);
+        pbDone();
+        setStatus("Stav: chyba");
+        showError("Dashboard spadl při načítání.\n\n" + (err?.message || String(err)));
+      } finally {
+        qs("refreshBtn").disabled = false;
+      }
+    }
+
+    function boot(){
+      bindEvents();
+      loadPackagingMap();
+      setMode("cfo");
+      renderSnapshots();
+      setStatus("Stav: připraveno");
+    }
+
+    boot();
+  </script>
+</body>
+</html>
