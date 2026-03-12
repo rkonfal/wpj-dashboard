@@ -1969,10 +1969,34 @@ Objednávka:
           const relHtml = relevant.length
             ? relevant.map(f => `<strong>${f.name}</strong>: ${f.type?.name || f.type?.ofType?.name || f.type?.kind}`).join("<br>")
             : "žádná relevantní pole nenalezena";
-          qs("whIntrospectResult").innerHTML = `
-            <div style="margin-bottom:8px"><strong>Pole na Product týkající se skladu:</strong><br>${relHtml}</div>
-            <div style="opacity:.6">Všechna pole Product: ${all}</div>
-          `;
+
+          // Also introspect the `stores` subtype
+          return gql(`{
+            __type(name: "Product") {
+              fields(name: "stores") { name }
+            }
+            storesType: __schema {
+              types {
+                name
+                fields { name type { name kind ofType { name } } }
+              }
+            }
+          }`).catch(() => null).then(schema => {
+            let storesHtml = "";
+            if(schema){
+              // Find ProductStore or similar type
+              const types = schema.storesType?.types || [];
+              const storeType = types.find(t => /store/i.test(t.name) && t.fields?.length);
+              if(storeType){
+                storesHtml = `<br><br><strong>Typ ${storeType.name} má pole:</strong><br>` +
+                  storeType.fields.map(f => `${f.name}: ${f.type?.name || f.type?.ofType?.name}`).join("<br>");
+              }
+            }
+            qs("whIntrospectResult").innerHTML = `
+              <div style="margin-bottom:8px"><strong>Pole na Product týkající se skladu:</strong><br>${relHtml}${storesHtml}</div>
+              <div style="opacity:.6">Všechna pole Product: ${all}</div>
+            `;
+          });
         }).catch(err => {
           qs("whIntrospectResult").textContent = "Introspekce selhala: " + err.message;
         });
