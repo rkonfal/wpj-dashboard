@@ -1167,45 +1167,20 @@ Objednávka:
       const limit = 1000;
       let all = [];
       let hasNextPage = true;
-      let useStocks = true; // try to fetch per-warehouse stocks
 
       while(hasNextPage){
-        let data;
-        if(useStocks){
-          try{
-            data = await gql(`
-              query products($offset:Int,$limit:Int){
-                products(offset:$offset,limit:$limit){
-                  items{
-                    id title code inStore
-                    price{ withVat }
-                    stocks{ warehouseId quantity }
-                  }
-                  hasNextPage
-                }
+        const data = await gql(`
+          query products($offset:Int,$limit:Int){
+            products(offset:$offset,limit:$limit){
+              items{
+                id title code inStore
+                price{ withVat }
+                stores{ store{ id } inStore }
               }
-            `, { offset, limit });
-          }catch{
-            useStocks = false;
-            data = await gql(`
-              query products($offset:Int,$limit:Int){
-                products(offset:$offset,limit:$limit){
-                  items{ id title code inStore price{ withVat } }
-                  hasNextPage
-                }
-              }
-            `, { offset, limit });
-          }
-        } else {
-          data = await gql(`
-            query products($offset:Int,$limit:Int){
-              products(offset:$offset,limit:$limit){
-                items{ id title code inStore price{ withVat } }
-                hasNextPage
-              }
+              hasNextPage
             }
-          `, { offset, limit });
-        }
+          }
+        `, { offset, limit });
 
         const chunk = data.products.items || [];
         all = all.concat(chunk);
@@ -1305,7 +1280,7 @@ Objednávka:
           isVirtual: isVirtualCode(code),
           packRaw,
           biggestPack: largestPack,
-          stocks: p.stocks || null
+          stores: p.stores || null
         });
       });
 
@@ -1471,13 +1446,13 @@ Objednávka:
       const avgOrderValue = validOrdersCount > 0 ? totalOrderValue / validOrdersCount : 0;
 
       // ── Warehouse breakdown ──
-      const warehouseMap = new Map(); // warehouseId → { id, name, totalStock, totalValue, productCount }
+      const warehouseMap = new Map(); // storeId → { id, name, totalStock, totalValue, productCount }
       for(const p of productMap.values()){
-        if(!p.stocks) continue;
-        for(const s of p.stocks){
-          const wid = String(s.warehouseId || "");
+        if(!p.stores) continue;
+        for(const s of p.stores){
+          const wid = String(s.store?.id || "");
           if(!wid) continue;
-          const qty = Number(s.quantity || 0);
+          const qty = Number(s.inStore || 0);
           if(!warehouseMap.has(wid)) warehouseMap.set(wid, { id: wid, name: wid, totalStock: 0, totalValue: 0, productCount: 0, zeroStockCount: 0 });
           const w = warehouseMap.get(wid);
           w.totalStock += qty;
@@ -1948,58 +1923,9 @@ Objednávka:
 
       if(!m.warehouseBreakdown || m.warehouseBreakdown.length === 0){
         el.innerHTML = `
-          <div style="padding:14px">
-            <div style="color:var(--orange);font-weight:700;margin-bottom:10px">
-              ⚠️ API nevrátilo pole <code>stocks</code> — zjišťuji dostupná pole…
-            </div>
-            <div class="small" id="whIntrospectResult">Načítám schéma…</div>
+          <div style="padding:14px;color:var(--muted)">
+            Žádná data o skladech. Buď produkty nemají přiřazené sklady, nebo API nevrátilo pole <code>stores</code>.
           </div>`;
-
-        // Run introspection to find warehouse-related fields on Product type
-        gql(`{
-          __type(name: "Product") {
-            fields { name type { name kind ofType { name } } }
-          }
-        }`).then(data => {
-          const fields = (data.__type?.fields || []);
-          const relevant = fields.filter(f =>
-            /stock|store|warehouse|inventory|qty|quantity|availab/i.test(f.name)
-          );
-          const all = fields.map(f => f.name).join(", ");
-          const relHtml = relevant.length
-            ? relevant.map(f => `<strong>${f.name}</strong>: ${f.type?.name || f.type?.ofType?.name || f.type?.kind}`).join("<br>")
-            : "žádná relevantní pole nenalezena";
-
-          // Also introspect the `stores` subtype
-          return gql(`{
-            __type(name: "Product") {
-              fields(name: "stores") { name }
-            }
-            storesType: __schema {
-              types {
-                name
-                fields { name type { name kind ofType { name } } }
-              }
-            }
-          }`).catch(() => null).then(schema => {
-            let storesHtml = "";
-            if(schema){
-              // Find ProductStore or similar type
-              const types = schema.storesType?.types || [];
-              const storeType = types.find(t => /store/i.test(t.name) && t.fields?.length);
-              if(storeType){
-                storesHtml = `<br><br><strong>Typ ${storeType.name} má pole:</strong><br>` +
-                  storeType.fields.map(f => `${f.name}: ${f.type?.name || f.type?.ofType?.name}`).join("<br>");
-              }
-            }
-            qs("whIntrospectResult").innerHTML = `
-              <div style="margin-bottom:8px"><strong>Pole na Product týkající se skladu:</strong><br>${relHtml}${storesHtml}</div>
-              <div style="opacity:.6">Všechna pole Product: ${all}</div>
-            `;
-          });
-        }).catch(err => {
-          qs("whIntrospectResult").textContent = "Introspekce selhala: " + err.message;
-        });
         return;
       }
 
