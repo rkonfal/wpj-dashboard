@@ -336,6 +336,7 @@
       <div class="chips">
         <span class="chip" id="statusChip">Stav: startuji</span>
         <span class="chip" id="lastRunChip">Poslední běh: —</span>
+        <span class="chip" id="cacheChip">Cache: —</span>
         <span class="chip">Od: 1. 1. 2025</span>
       </div>
     </div>
@@ -356,7 +357,8 @@
         </div>
 
         <div class="btns">
-          <button class="blue" id="refreshBtn" type="button">Načíst data</button>
+          <button class="blue" id="refreshBtn" type="button">⟳ Aktualizovat</button>
+          <button class="secondary" id="fullRefreshBtn" type="button">↺ Plný reset cache</button>
           <button class="green" id="exportOrderPlanBtn" type="button">Export objednávek</button>
           <button class="green" id="exportPortfolioBtn" type="button">Export portfolia</button>
         </div>
@@ -736,6 +738,206 @@ Objednávka:
     const ORDERS_FROM = "2025-01-01T00:00:00";
     const STORAGE_KEY_SNAPSHOTS = "wpj_dashboard_snapshots_v8";
     const STORAGE_KEY_PACKAGING = "wpj_dashboard_packaging_v3";
+
+    // ════════════════════════════════════════════════════
+    //  IndexedDB cache layer
+    // ════════════════════════════════════════════════════
+    const IDB_NAME    = "wpj_dashboard_idb_v1";
+    const IDB_VERSION = 1;
+    let _idb = null;
+
+    function openIDB(){
+      if(_idb) return Promise.resolve(_idb);
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+        req.onupgradeneeded = e => {
+          const db = e.target.result;
+          if(!db.objectStoreNames.contains("orders"))   db.createObjectStore("orders",   { keyPath: "id" });
+          if(!db.objectStoreNames.contains("products")) db.createObjectStore("products", { keyPath: "id" });
+          if(!db.objectStoreNames.contains("meta"))     db.createObjectStore("meta");
+        };
+        req.onsuccess = e => { _idb = e.target.result; resolve(_idb); };
+        req.onerror   = e => reject(e.target.error);
+      });
+    }
+
+    async function idbGetAll(store){
+      const db = await openIDB();
+      return new Promise((resolve, reject) => {
+        const tx  = db.transaction(store, "readonly");
+        const req = tx.objectStore(store).getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror   = e => reject(e.target.error);
+      });
+    }
+
+    async function idbPutMany(store, items){
+      if(!items.length) return;
+      const db = await openIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(store, "readwrite");
+        const os = tx.objectStore(store);
+        items.forEach(item => os.put(item));
+        tx.oncomplete = resolve;
+        tx.onerror    = e => reject(e.target.error);
+      });
+    }
+
+    async function idbClearStore(store){
+      const db = await openIDB();
+      return new Promise((resolve, reject) => {
+        const tx  = db.transaction(store, "readwrite");
+        const req = tx.objectStore(store).clear();
+        req.onsuccess = resolve;
+        req.onerror   = e => reject(e.target.error);
+      });
+    }
+
+    async function idbGetMeta(key){ 
+      const db = await openIDB();
+      return new Promise((resolve, reject) => {
+        const tx  = db.transaction("meta", "readonly");
+        const req = tx.objectStore("meta").get(key);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror   = e => reject(e.target.error);
+      });
+    }
+
+    async function idbSetMeta(key, val){
+      const db = await openIDB();
+      return new Promise((resolve, reject) => {
+        const tx  = db.transaction("meta", "readwrite");
+        const req = tx.objectStore("meta").put(val, key);
+        req.onsuccess = resolve;
+        req.onerror   = e => reject(e.target.error);
+      });
+    }
+
+    async function idbCount(store){
+      const db = await openIDB();
+      return new Promise((resolve, reject) => {
+        const tx  = db.transaction(store, "readonly");
+        const req = tx.objectStore(store).count();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror   = e => reject(e.target.error);
+      });
+    }
+
+    async function updateCacheChip(){
+      try{
+        const [oCount, pCount, lastO, lastP] = await Promise.all([
+          idbCount("orders"), idbCount("products"),
+          idbGetMeta("lastOrderFetch"), idbGetMeta("lastProductFetch")
+        ]);
+        const fmt = ts => ts ? new Date(ts).toLocaleString("cs-CZ",{day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}) : "nikdy";
+        qs("cacheChip").textContent =
+          `Cache: ${fmtI(oCount)} obj. · ${fmtI(pCount)} prod. · obj. aktualizovány ${fmt(lastO)}`;
+      }catch{ qs("cacheChip").textContent = "Cache: chyba IDB"; }
+    }
+
+    // ════════════════════════════════════════════════════
+    //  Incremental fetchers
+    // ════════════════════════════════════════════════════
+
+    // Products: full refresh if cache older than PRODUCT_TTL ms, else use cache
+    const PRODUCT_TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+    async function loadProducts(forceRefresh = false){
+      const lastFetch = await idbGetMeta("lastProductFetch");
+      const age = lastFetch ? Date.now() - lastFetch : Infinity;
+
+      if(!forceRefresh && age < PRODUCT_TTL){
+        const cached = await idbGetAll("products");
+        if(cached.length > 0){
+          setStatus("Produkty ze cache…");
+          return cached;
+        }
+      }
+
+      setStatus("Produkty: načítám z API…");
+      const fresh = await fetchAllProducts();
+      await idbClearStore("products");
+      await idbPutMany("products", fresh);
+      await idbSetMeta("lastProductFetch", Date.now());
+      return fresh;
+    }
+
+    // Orders: fetch only new ones (dateCreated > lastFetch), merge into IDB
+    async function loadOrders(forceRefresh = false){
+      let cachedOrders = [];
+      let lastFetch    = null;
+
+      if(!forceRefresh){
+        cachedOrders = await idbGetAll("orders");
+        lastFetch    = await idbGetMeta("lastOrderFetch");
+      }
+
+      if(forceRefresh){
+        await idbClearStore("orders");
+        cachedOrders = [];
+      }
+
+      const cutoff = lastFetch ? new Date(lastFetch) : new Date(ORDERS_FROM);
+
+      setStatus(`Objednávky: načítám od ${cutoff.toLocaleDateString("cs-CZ")}…`);
+      const newOrders = await fetchOrdersSince(cutoff);
+
+      if(newOrders.length){
+        await idbPutMany("orders", newOrders);
+        await idbSetMeta("lastOrderFetch", Date.now());
+        // Merge: build map from cache, override with new
+        const map = new Map(cachedOrders.map(o => [o.id, o]));
+        newOrders.forEach(o => map.set(o.id, o));
+        return [...map.values()];
+      } else {
+        await idbSetMeta("lastOrderFetch", Date.now());
+        return cachedOrders;
+      }
+    }
+
+    // Fetch orders newer than `sinceDate`, stop pagination once we pass it
+    async function fetchOrdersSince(sinceDate){
+      let offset = 0;
+      const limit = 1000;
+      let all = [];
+      let hasNextPage = true;
+      const since = new Date(sinceDate);
+
+      while(hasNextPage){
+        const data = await gql(`
+          query orders($offset:Int,$limit:Int){
+            orders(offset:$offset,limit:$limit,sort:{dateCreated:DESC}){
+              items{
+                id code dateCreated cancelled
+                totalPrice{ withVat }
+                items{
+                  productId variationId type code name pieces
+                  piecePrice{ withVat }
+                  totalPrice{ withVat }
+                }
+              }
+              hasNextPage
+            }
+          }
+        `, { offset, limit });
+
+        const chunk = data.orders.items || [];
+        if(!chunk.length) break;
+
+        // Collect items newer than cutoff; stop if we hit older ones
+        let hitOld = false;
+        for(const order of chunk){
+          const od = new Date(order.dateCreated);
+          if(od <= since){ hitOld = true; break; }
+          all.push(order);
+        }
+
+        hasNextPage = !!data.orders.hasNextPage && !hitOld;
+        offset += limit;
+      }
+
+      return all;
+    }
 
     const APP = {
       mode: "cfo",
@@ -1969,7 +2171,12 @@ Objednávka:
         btn.addEventListener("click", () => setPage(btn.dataset.page));
       });
 
-      qs("refreshBtn").addEventListener("click", run);
+      qs("refreshBtn").addEventListener("click", () => run(false));
+      qs("fullRefreshBtn").addEventListener("click", async () => {
+        if(confirm("Smazat celou cache a stáhnout vše znova?\n(může trvat déle)")){
+          run(true);
+        }
+      });
       qs("exportOrderPlanBtn").addEventListener("click", exportOrderPlan);
       qs("exportPortfolioBtn").addEventListener("click", exportPortfolio);
 
@@ -2015,35 +2222,37 @@ Objednávka:
       setTimeout(() => qs("topProgressBar").classList.add("done"), 300);
     }
 
-    async function run(){
+    async function run(forceRefresh = false){
       clearError();
       setStatus("Stav: načítám…");
       qs("refreshBtn").disabled = true;
+      qs("fullRefreshBtn").disabled = true;
       pbSet(5);
 
       try{
         savePackagingMap(qs("packagingMap").value);
-        pbSet(15);
+        pbSet(10);
 
         const [products, orders, warehouses] = await Promise.all([
-          fetchAllProducts(),
-          fetchAllOrders(),
+          loadProducts(forceRefresh),
+          loadOrders(forceRefresh),
           fetchWarehouses()
         ]);
 
         pbSet(80);
         APP.raw.products = products;
-        APP.raw.orders = orders;
+        APP.raw.orders   = orders;
         APP.raw.warehouses = warehouses;
 
         renderAllFromRaw(true);
+        await updateCacheChip();
         pbDone();
 
         setStatus("Stav: live data");
         setLastRun();
-        showOk(`Načteno:
+        showOk(`${forceRefresh ? "Plný reset" : "Inkrementální update"} dokončen:
 - produkty: ${fmtI(products.length)}
-- objednávky: ${fmtI(orders.length)}
+- objednávky celkem: ${fmtI(orders.length)}
 - objednávkový plán: ${fmtI(APP.data.orderPlan.length)} položek`);
       }catch(err){
         console.error(err);
@@ -2052,15 +2261,37 @@ Objednávka:
         showError("Dashboard spadl při načítání.\n\n" + (err?.message || String(err)));
       } finally {
         qs("refreshBtn").disabled = false;
+        qs("fullRefreshBtn").disabled = false;
       }
     }
 
-    function boot(){
+    async function boot(){
       bindEvents();
       loadPackagingMap();
       setMode("cfo");
       renderSnapshots();
-      setStatus("Stav: připraveno");
+      await updateCacheChip();
+
+      // Auto-load from cache on startup if cache exists
+      try{
+        const [cachedOrders, cachedProducts] = await Promise.all([
+          idbGetAll("orders"),
+          idbGetAll("products")
+        ]);
+
+        if(cachedOrders.length && cachedProducts.length){
+          APP.raw.products = cachedProducts;
+          APP.raw.orders   = cachedOrders;
+          renderAllFromRaw(false);
+          setStatus("Stav: ze cache");
+          setLastRun();
+          showOk(`Data načtena z lokální cache (${fmtI(cachedOrders.length)} obj., ${fmtI(cachedProducts.length)} prod.).\nKlikni ⟳ Aktualizovat pro stažení nových dat.`);
+        } else {
+          setStatus("Stav: připraveno — klikni Aktualizovat");
+        }
+      }catch{
+        setStatus("Stav: připraveno");
+      }
     }
 
     boot();
