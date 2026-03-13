@@ -1179,7 +1179,7 @@ Objednávka:
           query products($offset:Int,$limit:Int){
             products(offset:$offset,limit:$limit){
               items{
-                id title code inStore
+                id variationId title code inStore
                 price{ withVat }
                 stores{ store{ id } inStore }
               }
@@ -1279,6 +1279,7 @@ Objednávka:
 
         productMap.set(String(p.id), {
           id: p.id,
+          variationId: p.variationId || 0,
           title: p.title || `Produkt ${p.id}`,
           code: code || `SKU-${p.id}`,
           stock: Number(p.inStore || 0),
@@ -1452,8 +1453,17 @@ Objednávka:
       const avgOrderValue = validOrdersCount > 0 ? totalOrderValue / validOrdersCount : 0;
 
       // ── Warehouse breakdown ──
+      // Použij jen varianty (variationId > 0) pokud existují, jinak hlavní produkt.
+      // Tím zamezíme dvojitému počítání kdy API vrací jak parent tak každou variantu.
+      const hasVariants = new Set();
+      for(const p of productMap.values()){
+        if(p.variationId > 0) hasVariants.add(String(p.id).split("-")[0]);
+      }
+
       const warehouseMap = new Map(); // storeId → { id, name, totalStock, totalValue, productCount }
       for(const p of productMap.values()){
+        // Přeskoč hlavní produkt pokud má varianty
+        if(p.variationId === 0 && hasVariants.has(String(p.id))) continue;
         if(!p.stores) continue;
         for(const s of p.stores){
           const wid = String(s.store?.id || "");
