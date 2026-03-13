@@ -194,6 +194,12 @@
       background:linear-gradient(135deg,rgba(110,168,255,.07),rgba(67,209,124,.04));
     }
     .kpi-yesterday .kpi-label{color:var(--blue)}
+    .kpi-mini{
+      background:var(--panel3);border:1px solid var(--border);border-radius:10px;
+      padding:10px 16px;min-width:110px;
+    }
+    .kpi-mini .kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin-bottom:4px}
+    .kpi-mini .kpi-val{font-size:20px;font-weight:700;font-family:var(--mono)}
     .insight{white-space:pre-wrap;line-height:1.7;color:#dce5f2;font-size:14px}
 
     table{width:100%;border-collapse:collapse}
@@ -1917,28 +1923,103 @@ Objednávka:
       return found ? found.name : id;
     }
 
+    function openWhDetail(wid, m){
+      const name = whName(wid);
+      // Sesbírej všechny produkty které mají záznam pro tento sklad
+      const rows = [];
+      for(const p of m.products){
+        if(!p.stores) continue;
+        const s = p.stores.find(s => String(s.store?.id) === String(wid));
+        if(!s) continue;
+        const qty = Number(s.inStore || 0);
+        rows.push({ code: p.code, title: p.title, qty, price: p.price, value: qty * p.price });
+      }
+      // Seřaď: záporné první, pak vzestupně dle množství
+      rows.sort((a,b) => a.qty - b.qty);
+
+      const negCount = rows.filter(r => r.qty < 0).length;
+      const zeroCount = rows.filter(r => r.qty === 0).length;
+      const totalQty = rows.reduce((s,r) => s + r.qty, 0);
+      const totalVal = rows.reduce((s,r) => s + r.value, 0);
+
+      document.getElementById("whModalContent").innerHTML = `
+        <h2 style="margin:0 0 6px">${name} <span style="color:var(--muted);font-size:.8em">#${wid}</span></h2>
+        <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+          <div class="kpi-mini">
+            <div class="kpi-label">Produktů</div>
+            <div class="kpi-val mono">${rows.length}</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-label">Celkem ks</div>
+            <div class="kpi-val mono" style="color:${totalQty < 0 ? 'var(--red)' : 'inherit'}">${fmtI(totalQty)}</div>
+          </div>
+          <div class="kpi-mini">
+            <div class="kpi-label">Hodnota skladu</div>
+            <div class="kpi-val mono" style="color:${totalVal < 0 ? 'var(--red)' : 'inherit'}">${fmtCZK(totalVal)}</div>
+          </div>
+          ${negCount > 0 ? `<div class="kpi-mini" style="border-color:var(--red)">
+            <div class="kpi-label" style="color:var(--red)">⚠ Záporné zásoby</div>
+            <div class="kpi-val mono" style="color:var(--red)">${negCount} produktů</div>
+          </div>` : ""}
+          ${zeroCount > 0 ? `<div class="kpi-mini">
+            <div class="kpi-label">Nulové zásoby</div>
+            <div class="kpi-val mono" style="color:var(--muted)">${zeroCount}</div>
+          </div>` : ""}
+        </div>
+        ${negCount > 0 ? `<div style="background:rgba(240,107,107,.1);border:1px solid rgba(240,107,107,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.85em;color:var(--red)">
+          Záporné množství obvykle vzniká výdejem bez příjmu, chybou importu, nebo nesynchronizací mezi sklady.
+        </div>` : ""}
+        <table>
+          <thead>
+            <tr>
+              <th>Kód</th>
+              <th>Název</th>
+              <th class="r">Množství</th>
+              <th class="r">Cena / ks</th>
+              <th class="r">Hodnota</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `<tr style="${r.qty < 0 ? 'background:rgba(240,107,107,.08)' : ''}">
+              <td class="mono" style="font-size:.82em">${r.code}</td>
+              <td style="font-size:.88em">${r.title}</td>
+              <td class="r mono" style="color:${r.qty < 0 ? 'var(--red)' : r.qty === 0 ? 'var(--muted)' : 'inherit'};font-weight:${r.qty < 0 ? '700' : '400'}">${fmtI(r.qty)}</td>
+              <td class="r mono">${fmtCZK(r.price)}</td>
+              <td class="r mono" style="color:${r.value < 0 ? 'var(--red)' : 'inherit'}">${fmtCZK(r.value)}</td>
+            </tr>`).join("")}
+          </tbody>
+          <tfoot>
+            <tr style="border-top:2px solid var(--border);font-weight:700">
+              <td colspan="2">Celkem</td>
+              <td class="r mono" style="color:${totalQty < 0 ? 'var(--red)' : 'inherit'}">${fmtI(totalQty)}</td>
+              <td></td>
+              <td class="r mono" style="color:${totalVal < 0 ? 'var(--red)' : 'inherit'}">${fmtCZK(totalVal)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+      document.getElementById("whModal").style.display = "block";
+    }
+
     function renderWarehouseBreakdown(m){
       const el = qs("warehouseBreakdownCard");
       if(!el) return;
 
       if(!m.warehouseBreakdown || m.warehouseBreakdown.length === 0){
-        el.innerHTML = `
-          <div style="padding:14px;color:var(--muted)">
-            Žádná data o skladech. Buď produkty nemají přiřazené sklady, nebo API nevrátilo pole <code>stores</code>.
-          </div>`;
+        el.innerHTML = `<div style="padding:14px;color:var(--muted)">Žádná data o skladech.</div>`;
         return;
       }
 
       const totalVal = m.warehouseBreakdown.reduce((a,w) => a + w.totalValue, 0) || 1;
-      const whNames = loadWhNames();
 
       el.innerHTML = `
         <div class="toolbar" style="margin-bottom:10px">
-          <span class="small">Klikni na název skladu pro přejmenování</span>
+          <span class="small">Klikni na 🔍 pro detail · na název pro přejmenování</span>
         </div>
         <table>
           <thead>
             <tr>
+              <th></th>
               <th>Sklad</th>
               <th class="r">Produktů</th>
               <th class="r">Celkem ks</th>
@@ -1951,28 +2032,38 @@ Objednávka:
             ${m.warehouseBreakdown.map(w => {
               const pct = Math.round((w.totalValue / totalVal) * 100);
               const name = whName(w.id);
-              return `<tr>
+              const isNeg = w.totalValue < 0 || w.totalStock < 0;
+              return `<tr style="${isNeg ? 'background:rgba(240,107,107,.07)' : ''}">
+                <td>
+                  <button class="wh-detail-btn" data-wid="${w.id}" style="background:none;border:none;cursor:pointer;font-size:15px;padding:0 4px" title="Detail skladu">🔍</button>
+                </td>
                 <td>
                   <span class="wh-name" data-wid="${w.id}" style="cursor:pointer;border-bottom:1px dashed var(--muted)" title="Klikni pro přejmenování">${name}</span>
                   <span class="small" style="margin-left:6px;color:var(--muted)">#${w.id}</span>
+                  ${isNeg ? '<span style="color:var(--red);margin-left:6px;font-size:.8em">⚠</span>' : ''}
                 </td>
                 <td class="r mono">${fmtI(w.productCount)}</td>
-                <td class="r mono">${fmtI(w.totalStock)}</td>
-                <td class="r mono">${fmtCZK(w.totalValue)}</td>
+                <td class="r mono" style="color:${w.totalStock < 0 ? 'var(--red)' : 'inherit'}">${fmtI(w.totalStock)}</td>
+                <td class="r mono" style="color:${w.totalValue < 0 ? 'var(--red)' : 'inherit'}">${fmtCZK(w.totalValue)}</td>
                 <td class="r">
                   <div class="days-bar-wrap" style="justify-content:flex-end">
-                    <div class="days-bar-track"><div class="days-bar-fill" style="width:${pct}%;background:var(--blue)"></div></div>
+                    <div class="days-bar-track"><div class="days-bar-fill" style="width:${Math.abs(pct)}%;background:${isNeg ? 'var(--red)' : 'var(--blue)'}"></div></div>
                     <span class="mono">${pct} %</span>
                   </div>
                 </td>
-                <td class="r mono" style="color:${w.zeroStockCount > 0 ? "var(--orange)" : "var(--muted)"}">${fmtI(w.zeroStockCount)}</td>
+                <td class="r mono" style="color:${w.zeroStockCount > 0 ? 'var(--orange)' : 'var(--muted)'}">${fmtI(w.zeroStockCount)}</td>
               </tr>`;
             }).join("")}
           </tbody>
         </table>
       `;
 
-      // Click to rename warehouses
+      // Detail tlačítko
+      el.querySelectorAll(".wh-detail-btn").forEach(btn => {
+        btn.addEventListener("click", () => openWhDetail(btn.dataset.wid, m));
+      });
+
+      // Přejmenování
       el.querySelectorAll(".wh-name").forEach(span => {
         span.addEventListener("click", () => {
           const wid = span.dataset.wid;
@@ -2274,5 +2365,14 @@ Objednávka:
 
     boot();
   </script>
+
+<!-- Modal: detail skladu -->
+<div id="whModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);overflow-y:auto" onclick="if(event.target===this)this.style.display='none'">
+  <div style="max-width:900px;margin:40px auto;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:28px;position:relative">
+    <button onclick="document.getElementById('whModal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+    <div id="whModalContent"></div>
+  </div>
+</div>
+
 </body>
 </html>
