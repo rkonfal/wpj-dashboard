@@ -1952,6 +1952,16 @@ Objednávka:
       const totalQty = rows.reduce((s,r) => s + r.qty, 0);
       const totalVal = rows.reduce((s,r) => s + r.value, 0);
 
+      // Raw debug — prvních 5 záporných produktů z productMap
+      const rawDebug = [];
+      for(const p of m.products){
+        if(!p.stores) continue;
+        const s = p.stores.find(s => String(s.store?.id) === String(wid));
+        if(!s || Number(s.inStore || 0) >= 0) continue;
+        rawDebug.push(p);
+        if(rawDebug.length >= 5) break;
+      }
+
       document.getElementById("whModalContent").innerHTML = `
         <h2 style="margin:0 0 4px">${name} <span style="color:var(--muted);font-size:.8em">#${wid}</span></h2>
         <div style="font-size:.82em;color:var(--muted);margin-bottom:16px">
@@ -1983,7 +1993,11 @@ Objednávka:
         ${negCount > 0 ? `<div style="background:rgba(242,166,80,.08);border:1px solid rgba(242,166,80,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.85em;color:var(--orange)">
           Tyto produkty mají více kusů zarezervovaných v objednávkách než je fyzický stav skladu.
           Fyzicky zboží chybět nemusí — je potřeba expedovat nebo zrušit přebytečné rezervace.
-        </div>` : ""}
+        </div>
+        <details style="margin-bottom:16px">
+          <summary style="cursor:pointer;font-size:.8em;color:var(--muted);padding:6px 0">🔎 Raw API data (prvních ${rawDebug.length} záporných produktů) — pro diagnostiku</summary>
+          <pre style="font-size:.72em;background:var(--panel3);border:1px solid var(--border);border-radius:8px;padding:12px;overflow-x:auto;margin-top:8px;color:var(--text)">${rawDebug.map(p => JSON.stringify({id:p.id, variationId:p.variationId, code:p.code, inStore:p.stock, stores:p.stores}, null, 2)).join("\n\n")}</pre>
+        </details>` : ""}
         <table>
           <thead>
             <tr>
