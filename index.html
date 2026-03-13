@@ -1943,40 +1943,45 @@ Objednávka:
       const totalVal = rows.reduce((s,r) => s + r.value, 0);
 
       document.getElementById("whModalContent").innerHTML = `
-        <h2 style="margin:0 0 6px">${name} <span style="color:var(--muted);font-size:.8em">#${wid}</span></h2>
+        <h2 style="margin:0 0 4px">${name} <span style="color:var(--muted);font-size:.8em">#${wid}</span></h2>
+        <div style="font-size:.82em;color:var(--muted);margin-bottom:16px">
+          Zobrazeno <strong style="color:var(--text)">disponibilní množství</strong> = fyzický stav skladu minus rezervace z otevřených objednávek.
+          Záporná hodnota znamená, že je více zboží zarezervováno než fyzicky skladem — ne že fyzicky chybí.
+        </div>
         <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
           <div class="kpi-mini">
             <div class="kpi-label">Produktů</div>
             <div class="kpi-val mono">${rows.length}</div>
           </div>
           <div class="kpi-mini">
-            <div class="kpi-label">Celkem ks</div>
-            <div class="kpi-val mono" style="color:${totalQty < 0 ? 'var(--red)' : 'inherit'}">${fmtI(totalQty)}</div>
+            <div class="kpi-label">Disponibilní ks celkem</div>
+            <div class="kpi-val mono" style="color:${totalQty < 0 ? 'var(--orange)' : 'inherit'}">${fmtI(totalQty)}</div>
           </div>
           <div class="kpi-mini">
-            <div class="kpi-label">Hodnota skladu</div>
-            <div class="kpi-val mono" style="color:${totalVal < 0 ? 'var(--red)' : 'inherit'}">${fmtCZK(totalVal)}</div>
+            <div class="kpi-label">Hodnota disponibilních zásob</div>
+            <div class="kpi-val mono" style="color:${totalVal < 0 ? 'var(--orange)' : 'inherit'}">${fmtCZK(totalVal)}</div>
           </div>
-          ${negCount > 0 ? `<div class="kpi-mini" style="border-color:var(--red)">
-            <div class="kpi-label" style="color:var(--red)">⚠ Záporné zásoby</div>
-            <div class="kpi-val mono" style="color:var(--red)">${negCount} produktů</div>
+          ${negCount > 0 ? `<div class="kpi-mini" style="border-color:var(--orange)">
+            <div class="kpi-label" style="color:var(--orange)">⚠ Přerezervováno</div>
+            <div class="kpi-val mono" style="color:var(--orange)">${negCount} produktů</div>
           </div>` : ""}
           ${zeroCount > 0 ? `<div class="kpi-mini">
-            <div class="kpi-label">Nulové zásoby</div>
+            <div class="kpi-label">Nulové disponibilní</div>
             <div class="kpi-val mono" style="color:var(--muted)">${zeroCount}</div>
           </div>` : ""}
         </div>
-        ${negCount > 0 ? `<div style="background:rgba(240,107,107,.1);border:1px solid rgba(240,107,107,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.85em;color:var(--red)">
-          Záporné množství obvykle vzniká výdejem bez příjmu, chybou importu, nebo nesynchronizací mezi sklady.
+        ${negCount > 0 ? `<div style="background:rgba(242,166,80,.08);border:1px solid rgba(242,166,80,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.85em;color:var(--orange)">
+          Tyto produkty mají více kusů zarezervovaných v objednávkách než je fyzický stav skladu.
+          Fyzicky zboží chybět nemusí — je potřeba expedovat nebo zrušit přebytečné rezervace.
         </div>` : ""}
         <table>
           <thead>
             <tr>
               <th>Kód</th>
               <th>Název</th>
-              <th class="r">Množství</th>
+              <th class="r">Disponibilní ks</th>
               <th class="r">Cena / ks</th>
-              <th class="r">Hodnota</th>
+              <th class="r">Disponibilní hodnota</th>
             </tr>
           </thead>
           <tbody>
@@ -2022,7 +2027,7 @@ Objednávka:
               <th></th>
               <th>Sklad</th>
               <th class="r">Produktů</th>
-              <th class="r">Celkem ks</th>
+              <th class="r">Disponibilní ks</th>
               <th class="r">Hodnota</th>
               <th class="r">% hodnoty</th>
               <th class="r">Nulové zásoby</th>
@@ -2043,8 +2048,8 @@ Objednávka:
                   ${isNeg ? '<span style="color:var(--red);margin-left:6px;font-size:.8em">⚠</span>' : ''}
                 </td>
                 <td class="r mono">${fmtI(w.productCount)}</td>
-                <td class="r mono" style="color:${w.totalStock < 0 ? 'var(--red)' : 'inherit'}">${fmtI(w.totalStock)}</td>
-                <td class="r mono" style="color:${w.totalValue < 0 ? 'var(--red)' : 'inherit'}">${fmtCZK(w.totalValue)}</td>
+                <td class="r mono" style="color:${w.totalStock < 0 ? 'var(--orange)' : 'inherit'}">${fmtI(w.totalStock)}</td>
+                <td class="r mono" style="color:${w.totalValue < 0 ? 'var(--orange)' : 'inherit'}">${fmtCZK(w.totalValue)}</td>
                 <td class="r">
                   <div class="days-bar-wrap" style="justify-content:flex-end">
                     <div class="days-bar-track"><div class="days-bar-fill" style="width:${Math.abs(pct)}%;background:${isNeg ? 'var(--red)' : 'var(--blue)'}"></div></div>
