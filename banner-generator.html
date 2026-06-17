@@ -1119,41 +1119,67 @@ async function fetchWithCorsFallback(url) {
   const T = 25000;
   const isDefaultFeed = url === DEFAULT_FEED || url.includes('kralovstvi-tiande.cz/feed');
 
-  // 1. Own Worker proxy (always available, correct CORS, fastest for tiande feed)
+  // helper: is the body actually feed content (not a status/error JSON)?
+  const isFeedContent = text => {
+    const t = text.trimStart();
+    // XML feed
+    if (t.startsWith('<?xml') || t.startsWith('<SHOP') || t.startsWith('<shop') || t.startsWith('<rss')) return true;
+    // JSON array/items (not a {ok:true} status object)
+    if (t.startsWith('[')) return true;
+    if (t.startsWith('{')) {
+      try {
+        const j = JSON.parse(t);
+        return Array.isArray(j.items||j.products||j.data?.items) && (j.items||j.products||j.data?.items).length > 0;
+      } catch { return false; }
+    }
+    return false;
+  };
+
+  // 1. Own Worker proxy /feed (only if worker has the endpoint deployed)
   if (isDefaultFeed) {
     try {
       const r = await fetch(FEED_PROXY, { signal: AbortSignal.timeout(T) });
-      if (r.ok) { console.info('[feed] loaded via tiande-proxy worker'); return { response: r }; }
+      if (r.ok) {
+        const text = await r.text();
+        if (isFeedContent(text)) {
+          console.info('[feed] loaded via tiande-proxy worker');
+          return { text };
+        }
+        console.warn('[feed] worker returned non-feed content (endpoint not deployed yet?)');
+      }
     } catch(e) { console.warn('[feed] worker proxy failed:', e.message); }
   }
 
-  // 2. Direct fetch (works if server sends CORS headers)
+  // 2. Direct fetch (works if server allows CORS)
   try {
     const r = await fetch(url, { signal: AbortSignal.timeout(T) });
-    if (r.ok) { console.info('[feed] loaded directly'); return { response: r }; }
+    if (r.ok) {
+      const text = await r.text();
+      if (isFeedContent(text)) { console.info('[feed] loaded directly'); return { text }; }
+    }
   } catch(_) { /* CORS/network */ }
 
-  // 3. Public CORS proxies as last resort
+  // 3. Public CORS proxies
   const proxies = [
     { label: 'corsproxy.io',
       getUrl: u => 'https://corsproxy.io/?' + encodeURIComponent(u),
-      extract: async r => ({ text: await r.text() }) },
+      extract: async r => r.text() },
     { label: 'allorigins.win',
       getUrl: u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
-      extract: async r => { const j = await r.json(); return { text: j.contents||'' }; } },
+      extract: async r => r.json().then(j => j.contents||'') },
   ];
   for (const p of proxies) {
     try {
       const r = await fetch(p.getUrl(url), { signal: AbortSignal.timeout(T) });
       if (r.ok) {
-        const res = await p.extract(r);
-        console.info(`[feed] loaded via ${p.label}`);
-        return res;
+        const text = await p.extract(r);
+        if (isFeedContent(text)) { console.info(`[feed] loaded via ${p.label}`); return { text }; }
+        console.warn(`[feed] ${p.label} returned non-feed content`);
       }
     } catch(e) { console.warn(`[feed] ${p.label} failed:`, e.message); }
   }
 
-  throw new Error('Nelze načíst feed. Zkontrolujte, zda je Worker proxy nasazený (viz README).');
+  throw new Error('Nelze načíst feed. Worker proxy není nasazen nebo je URL nedostupná.');
 }
 
 async function loadFeedProducts() {
@@ -1161,8 +1187,10 @@ async function loadFeedProducts() {
   if (!url) throw new Error('Zadejte URL feedu');
   localStorage.setItem(FEED_URL_KEY, url);
 
-  const fetched = await fetchWithCorsFallback(url);
-  const text = fetched.text ?? await fetched.response.text();
+  const { text } = await fetchWithCorsFallback(url);
+
+  // Log snippet for debugging
+  console.info('[feed] content preview:', text.slice(0, 300));
 
   // JSON?
   const trimmed = text.trimStart();
@@ -1175,16 +1203,21 @@ async function loadFeedProducts() {
   const htmlDoc = new DOMParser().parseFromString(text, 'text/html');
   const hasParseErr = !!xmlDoc.querySelector('parsererror');
 
+  // Log detected root/first elements
+  console.info('[feed] xmlDoc root:', xmlDoc.documentElement?.tagName,
+    '| first child:', xmlDoc.documentElement?.firstElementChild?.tagName);
+  console.info('[feed] htmlDoc body first child:', htmlDoc.body?.firstElementChild?.tagName);
+
   // Heureka: SHOPITEM (uppercase XML) or shopitem (HTML-parsed lowercase)
-  if (!hasParseErr && xmlDoc.querySelector('SHOPITEM')) return parseHeurekaXML(xmlDoc);
-  if (htmlDoc.querySelector('shopitem')) return parseHeurekaXML(htmlDoc);
+  if (!hasParseErr && xmlDoc.querySelector('SHOPITEM')) { console.info('[feed] → Heureka XML'); return parseHeurekaXML(xmlDoc); }
+  if (htmlDoc.querySelector('shopitem'))                { console.info('[feed] → Heureka HTML'); return parseHeurekaXML(htmlDoc); }
 
   // Google Shopping RSS: <item> elements
-  if (!hasParseErr && xmlDoc.querySelector('item')) return parseGoogleXML(xmlDoc);
-  if (htmlDoc.querySelector('item')) return parseGoogleXML(htmlDoc);
+  if (!hasParseErr && xmlDoc.querySelector('item'))     { console.info('[feed] → Google XML'); return parseGoogleXML(xmlDoc); }
+  if (htmlDoc.querySelector('item'))                    { console.info('[feed] → Google HTML'); return parseGoogleXML(htmlDoc); }
 
   if (hasParseErr) throw new Error('Neplatný XML – ' + (xmlDoc.querySelector('parsererror')?.textContent||'').slice(0,120));
-  throw new Error('Nerozpoznaný formát feedu (podporujeme Heureka XML, Google Shopping XML, JSON)');
+  throw new Error(`Nerozpoznaný formát feedu. Root tag: <${xmlDoc.documentElement?.tagName}>. Podpora: Heureka XML (SHOPITEM), Google Shopping RSS (item), JSON.`);
 }
 
 // ─────────────────────────────────────────────
