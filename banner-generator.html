@@ -1030,15 +1030,32 @@ function normalizeProduct(raw) {
 }
 
 function parseHeurekaXML(doc) {
-  return [...doc.querySelectorAll('SHOPITEM')].map(item => {
-    const t = tag => item.querySelector(tag)?.textContent?.trim()||'';
+  // Works with both uppercase XML and lowercase HTML-parsed documents
+  const sel = n => doc.querySelector(n) ? n : n.toLowerCase();
+  const items = [...(doc.querySelectorAll('SHOPITEM').length
+    ? doc.querySelectorAll('SHOPITEM')
+    : doc.querySelectorAll('shopitem'))];
+  return items.map(item => {
+    const t = tag => {
+      const el = item.querySelector(tag) || item.querySelector(tag.toLowerCase());
+      return el?.textContent?.trim()||'';
+    };
     const id    = t('ITEM_ID')||t('ID')||uid();
     const title = t('PRODUCTNAME')||t('PRODUCT_NAME')||t('NAME')||'';
     const price = parseFloat((t('PRICE_VAT')||t('PRICE')||'0').replace(',','.'));
-    const imgs  = [t('IMGURL'), ...[...item.querySelectorAll('IMGURL_ALTERNATIVE')].map(el=>el.textContent.trim())].filter(Boolean);
-    const params= [...item.querySelectorAll('PARAM')].map(p=>({
-      name: p.querySelector('PARAM_NAME')?.textContent?.trim()||'',
-      value:p.querySelector('VAL')?.textContent?.trim()||'',
+    const imgUrls = [
+      ...item.querySelectorAll('IMGURL'),
+      ...item.querySelectorAll('imgurl'),
+    ].map(el=>el.textContent.trim());
+    const altImgs = [
+      ...item.querySelectorAll('IMGURL_ALTERNATIVE'),
+      ...item.querySelectorAll('imgurl_alternative'),
+    ].map(el=>el.textContent.trim());
+    const imgs = [...new Set([...imgUrls, ...altImgs])].filter(Boolean);
+    const paramEls = [...item.querySelectorAll('PARAM'), ...item.querySelectorAll('param')];
+    const params = paramEls.map(p=>({
+      name: (p.querySelector('PARAM_NAME')||p.querySelector('param_name'))?.textContent?.trim()||'',
+      value:(p.querySelector('VAL')||p.querySelector('val'))?.textContent?.trim()||'',
     }));
     return normalizeProduct({
       id, title, code: t('EAN')||t('PRODUCT_CODE')||id,
@@ -1097,33 +1114,55 @@ function parseJSONFeed(json) {
   }).filter(p=>p.title);
 }
 
+async function fetchWithCorsFallback(url) {
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    if (r.ok) return r;
+    // If server error on direct, still try proxy in case it's a CORS-masked error
+    if (r.status >= 400) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+  } catch(e) {
+    if (e.message?.startsWith('HTTP')) throw e;
+    // Network / CORS error — try corsproxy.io as fallback
+    console.warn('Direct fetch failed, trying CORS proxy:', e.message);
+  }
+  const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
+  try {
+    const r = await fetch(proxy, { signal: AbortSignal.timeout(20000) });
+    if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+    return r;
+  } catch(e2) {
+    throw new Error('Nelze načíst feed (CORS). Zkuste feed URL s povoleným CORS nebo jiný feed.');
+  }
+}
+
 async function loadFeedProducts() {
   const url = $('inp-feed-url').value.trim();
   if (!url) throw new Error('Zadejte URL feedu');
   localStorage.setItem(FEED_URL_KEY, url);
 
-  let res;
-  try {
-    res = await fetch(url, { signal: AbortSignal.timeout(20000) });
-  } catch(e) {
-    if (e.name==='TypeError') throw new Error('CORS nebo síťová chyba – server musí mít povolený přístup z prohlížeče (Access-Control-Allow-Origin)');
-    throw e;
-  }
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  const res = await fetchWithCorsFallback(url);
   const text = await res.text();
 
   // JSON?
-  if (text.trimStart().startsWith('{') || text.trimStart().startsWith('[')) {
+  const trimmed = text.trimStart();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     try { return parseJSONFeed(JSON.parse(text)); } catch {}
   }
 
-  // XML
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(text, 'application/xml');
-  if (doc.querySelector('parsererror')) throw new Error('Neplatný XML feed');
-  if (doc.querySelector('SHOPITEM'))   return parseHeurekaXML(doc);
-  if (doc.querySelector('item'))       return parseGoogleXML(doc);
+  // XML — parse both as proper XML and as HTML (HTML lowercases tags, more forgiving)
+  const xmlDoc = new DOMParser().parseFromString(text, 'application/xml');
+  const htmlDoc = new DOMParser().parseFromString(text, 'text/html');
+  const hasParseErr = !!xmlDoc.querySelector('parsererror');
 
+  // Heureka: SHOPITEM (uppercase XML) or shopitem (HTML-parsed lowercase)
+  if (!hasParseErr && xmlDoc.querySelector('SHOPITEM')) return parseHeurekaXML(xmlDoc);
+  if (htmlDoc.querySelector('shopitem')) return parseHeurekaXML(htmlDoc);
+
+  // Google Shopping RSS: <item> elements
+  if (!hasParseErr && xmlDoc.querySelector('item')) return parseGoogleXML(xmlDoc);
+  if (htmlDoc.querySelector('item')) return parseGoogleXML(htmlDoc);
+
+  if (hasParseErr) throw new Error('Neplatný XML – ' + (xmlDoc.querySelector('parsererror')?.textContent||'').slice(0,120));
   throw new Error('Nerozpoznaný formát feedu (podporujeme Heureka XML, Google Shopping XML, JSON)');
 }
 
@@ -1511,23 +1550,7 @@ function renderProjectsList() {
 // ─────────────────────────────────────────────
 function bindAll() {
   // Load feed
-  $('btn-load-feed').onclick=async()=>{
-    const st=$('feed-status');
-    const btn=$('btn-load-feed');
-    btn.textContent='Načítám…'; btn.disabled=true;
-    st.textContent=''; st.className='';
-    try {
-      APP.products=await loadFeedProducts();
-      renderProductList();
-      st.textContent=`✓ ${APP.products.length} produktů`;
-      st.className='ok';
-      showToast(`Načteno ${APP.products.length} produktů`);
-    } catch(e) {
-      st.textContent='Chyba';
-      st.className='err';
-      showToast(e.message,'error');
-    } finally { btn.textContent='Načíst feed'; btn.disabled=false; }
-  };
+  $('btn-load-feed').onclick = triggerLoadFeed;
 
   // Search
   $('inp-search').addEventListener('input',e=>renderProductList(e.target.value));
@@ -1688,8 +1711,26 @@ function bindAll() {
 // ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
+async function triggerLoadFeed() {
+  const st=$('feed-status'), btn=$('btn-load-feed');
+  btn.textContent='Načítám…'; btn.disabled=true;
+  st.textContent=''; st.className='';
+  try {
+    APP.products = await loadFeedProducts();
+    renderProductList();
+    st.textContent=`✓ ${APP.products.length} produktů`;
+    st.className='ok';
+    if (APP.products.length) showToast(`Načteno ${APP.products.length} produktů`);
+    else showToast('Feed načten, ale neobsahuje žádné produkty','error');
+  } catch(e) {
+    st.textContent='Chyba';
+    st.className='err';
+    showToast(e.message,'error');
+    console.error('[feed]', e);
+  } finally { btn.textContent='Načíst feed'; btn.disabled=false; }
+}
+
 function init() {
-  // Restore saved feed URL
   const savedUrl=localStorage.getItem(FEED_URL_KEY);
   if (savedUrl) $('inp-feed-url').value=savedUrl;
 
@@ -1697,6 +1738,9 @@ function init() {
   showStage('select');
   renderBundleList();
   $('sidebar-count').textContent='0';
+
+  // Auto-load feed on startup
+  if ($('inp-feed-url').value.trim()) triggerLoadFeed();
 }
 
 document.fonts.ready.then(init);
