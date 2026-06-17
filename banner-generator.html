@@ -1,0 +1,1852 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generátor bannerů – Království tianDe</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #0b1020;
+  color: #e2e8f0;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.hidden { display: none !important; }
+
+/* ── Topbar ─────────────────────────────────────────────────────────── */
+.topbar {
+  height: 52px;
+  background: #131929;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  position: relative;
+  z-index: 20;
+}
+
+.logo-text { font-size: 16px; color: #d4af37; }
+.logo-text strong { font-weight: 700; }
+.topbar-sep { color: rgba(255,255,255,0.2); margin: 0 12px; }
+.topbar-title { font-size: 14px; color: rgba(255,255,255,0.55); }
+.topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+/* ── Connection bar ─────────────────────────────────────────────────── */
+.conn-bar {
+  background: #111827;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  max-height: 0;
+  position: relative;
+  z-index: 15;
+}
+
+.conn-bar.open { max-height: 72px; }
+
+.conn-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+}
+
+.conn-bar-inner label {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+}
+
+#feed-status {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+}
+
+/* ── App layout ─────────────────────────────────────────────────────── */
+.app-layout {
+  display: flex;
+  height: calc(100vh - 52px);
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+/* ── Sidebar ────────────────────────────────────────────────────────── */
+.sidebar {
+  width: 280px;
+  background: #111827;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar-search { padding: 12px; }
+
+.sidebar-products {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 8px;
+}
+
+.sidebar-empty {
+  padding: 24px;
+  text-align: center;
+  color: rgba(255,255,255,0.35);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.product-item {
+  background: #1a2235;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.product-item:hover { border-color: rgba(212,175,55,0.4); }
+.product-item.selected { border-color: #d4af37; background: rgba(212,175,55,0.08); }
+
+.product-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e2e8f0;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.product-item-meta {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  display: flex;
+  justify-content: space-between;
+}
+
+.product-item-price {
+  font-size: 12px;
+  color: #d4af37;
+  font-weight: 600;
+}
+
+/* ── Sidebar bundles ────────────────────────────────────────────────── */
+.sidebar-bundles {
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding: 12px;
+}
+
+.sidebar-bundles-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+}
+
+.bundle-item {
+  background: #1a2235;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #e2e8f0;
+}
+
+.bundle-item:hover { border-color: rgba(212,175,55,0.3); }
+
+/* ── Inputs ─────────────────────────────────────────────────────────── */
+input[type=text],
+input[type=url],
+textarea,
+select {
+  background: #1a2235;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  padding: 8px 10px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input[type=text]:focus,
+input[type=url]:focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(212,175,55,0.5);
+}
+
+input[type=range] { width: 100%; accent-color: #d4af37; }
+
+textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.btn-primary { background: #d4af37; color: #1a1a2e; }
+.btn-primary:hover { background: #e8c84a; }
+
+.btn-outline {
+  background: transparent;
+  color: rgba(255,255,255,0.7);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.btn-outline:hover { border-color: rgba(255,255,255,0.3); color: #fff; }
+
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+.btn-lg {
+  width: 100%;
+  justify-content: center;
+  padding: 12px;
+  font-size: 15px;
+  margin-top: 16px;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.btn-ghost:hover { color: #fff; }
+
+.btn-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.btn-close:hover { color: #fff; }
+
+/* ── Main workspace ─────────────────────────────────────────────────── */
+.main-workspace {
+  flex: 1;
+  overflow-y: auto;
+  background: #0b1020;
+}
+
+.stage { min-height: 100%; }
+
+/* ── Stage: select ──────────────────────────────────────────────────── */
+.stage-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 120px);
+  gap: 12px;
+}
+
+.stage-empty-icon { font-size: 48px; color: rgba(212,175,55,0.3); }
+.stage-empty h2 { font-size: 20px; color: rgba(255,255,255,0.6); }
+.stage-empty p { font-size: 14px; color: rgba(255,255,255,0.35); }
+
+/* ── Stage: configure ───────────────────────────────────────────────── */
+.configure-panel {
+  max-width: 680px;
+  margin: 40px auto;
+  padding: 0 24px;
+}
+
+.configure-product-preview {
+  background: #131929;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.cfg-product-img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #1a2235;
+  flex-shrink: 0;
+}
+
+.cfg-product-info h3 { font-size: 16px; margin-bottom: 4px; }
+.cfg-product-info .code { font-size: 12px; color: rgba(255,255,255,0.4); }
+.cfg-product-info .price { font-size: 18px; font-weight: 700; color: #d4af37; margin-top: 6px; }
+
+.configure-options {
+  background: #131929;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.field-group { margin-bottom: 16px; }
+
+.field-group label {
+  display: block;
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 6px;
+}
+
+.template-checks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.template-check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1a2235;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #e2e8f0;
+  user-select: none;
+}
+
+.template-check-item input {
+  accent-color: #d4af37;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ── Stage: workspace ───────────────────────────────────────────────── */
+.workspace-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: #0d1526;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.workspace-product-name { flex: 1; font-size: 15px; font-weight: 600; }
+.workspace-actions { display: flex; gap: 10px; }
+
+/* ── Variant grid ───────────────────────────────────────────────────── */
+.variant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 20px;
+  padding: 24px;
+}
+
+.variant-card {
+  background: #131929;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.variant-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.variant-card-meta { display: flex; align-items: center; gap: 10px; }
+.variant-template-name { font-size: 13px; font-weight: 600; }
+
+.variant-scheme-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.2);
+  flex-shrink: 0;
+}
+
+.status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.status-pending  { background: rgba(110,168,255,0.15); color: #6ea8ff; }
+.status-approved { background: rgba(67,209,124,0.15); color: #43d17c; }
+.status-rejected { background: rgba(240,107,107,0.15); color: #f06b6b; }
+
+/* ── Variant previews ───────────────────────────────────────────────── */
+.variant-previews {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 12px;
+  background: #0b1020;
+}
+
+.variant-preview-item { position: relative; cursor: pointer; }
+
+.variant-preview-img {
+  width: 100%;
+  border-radius: 4px;
+  display: block;
+  background: #1a2235;
+}
+
+.variant-preview-label {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.variant-card-actions {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  flex-wrap: wrap;
+}
+
+.variant-card-actions .btn { font-size: 12px; padding: 5px 10px; }
+
+.variant-headline {
+  font-size: 13px;
+  color: rgba(255,255,255,0.7);
+  padding: 6px 12px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Editor modal ───────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-editor {
+  display: flex;
+  width: 95vw;
+  max-width: 1300px;
+  height: 90vh;
+  background: #111827;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.modal-editor-left {
+  flex: 1;
+  background: #0b1020;
+  padding: 20px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-content: start;
+}
+
+.modal-editor-right {
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid rgba(255,255,255,0.08);
+}
+
+.modal-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.modal-editor-header h3 { font-size: 16px; }
+
+.editor-fields {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.editor-preview-item { }
+
+.editor-preview-img {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.06);
+  display: block;
+  background: #1a2235;
+}
+
+.editor-preview-label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.editor-field { }
+
+.editor-field label {
+  display: block;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+/* ── Template selector ──────────────────────────────────────────────── */
+.template-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.template-option {
+  background: #1a2235;
+  border: 2px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  text-align: center;
+  transition: all 0.15s;
+  color: #e2e8f0;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.template-option:hover { border-color: rgba(212,175,55,0.3); }
+.template-option.selected { border-color: #d4af37; background: rgba(212,175,55,0.08); color: #d4af37; }
+.template-option-icon { font-size: 20px; display: block; margin-bottom: 4px; }
+
+/* ── Scheme selector ────────────────────────────────────────────────── */
+.scheme-selector { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.scheme-option {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.scheme-option.selected { border-color: #fff; transform: scale(1.15); }
+.scheme-option:hover { transform: scale(1.1); }
+
+/* ── Benefits editor ────────────────────────────────────────────────── */
+.benefits-list { display: flex; flex-direction: column; gap: 6px; }
+
+.benefit-item { display: flex; align-items: center; gap: 6px; }
+.benefit-item input { flex: 1; }
+.benefit-item .btn-ghost { padding: 4px; }
+
+/* ── Asset manager ──────────────────────────────────────────────────── */
+.asset-mode-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+
+.asset-mode-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s;
+}
+
+.asset-mode-btn.active {
+  background: rgba(212,175,55,0.15);
+  border-color: #d4af37;
+  color: #d4af37;
+}
+
+/* ── Editor footer ──────────────────────────────────────────────────── */
+.editor-footer {
+  display: flex;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.editor-footer .btn { flex: 1; justify-content: center; }
+
+/* ── Standard modal ─────────────────────────────────────────────────── */
+.modal-standard {
+  background: #111827;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  width: 90vw;
+  max-width: 600px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.modal-header h3 { font-size: 16px; }
+.modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+.modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Project items ──────────────────────────────────────────────────── */
+.project-item {
+  background: #1a2235;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.project-item-info { flex: 1; }
+.project-item-name { font-size: 14px; font-weight: 500; }
+.project-item-meta { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+.project-item-actions { display: flex; gap: 6px; }
+
+/* ── Separator ──────────────────────────────────────────────────────── */
+.sep { height: 1px; background: rgba(255,255,255,0.07); margin: 8px 0; }
+
+/* ── Scrollbar ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+/* ── Toast ──────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: #1a2235;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-size: 13px;
+  z-index: 999;
+  transform: translateY(20px);
+  opacity: 0;
+  transition: all 0.25s;
+  pointer-events: none;
+}
+
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.success { border-color: rgba(67,209,124,0.3); color: #43d17c; }
+.toast.error   { border-color: rgba(240,107,107,0.3); color: #f06b6b; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- topbar -->
+    <div class="topbar" id="topbar">
+      <div class="topbar-left">
+        <span class="logo-text">Království <strong>tianDe</strong></span>
+        <span class="topbar-sep">|</span>
+        <span class="topbar-title" id="topbar-title">Generátor bannerů</span>
+      </div>
+      <div class="topbar-right" id="topbar-actions">
+        <button class="btn btn-outline" id="btn-projects">Projekty</button>
+        <button class="btn btn-outline" id="btn-conn-toggle">Připojení</button>
+      </div>
+    </div>
+
+    <!-- connection bar (collapsible) -->
+    <div class="conn-bar" id="conn-bar">
+      <div class="conn-bar-inner">
+        <label>Worker URL</label>
+        <input type="text" id="inp-worker" value="https://tiande-proxy.rkonfal-rk.workers.dev" />
+        <label>Token</label>
+        <input type="text" id="inp-token" value="bF5mJwCfTmTyvdda" />
+        <button class="btn btn-primary" id="btn-load-feed">Načíst feed</button>
+        <span id="feed-status"></span>
+      </div>
+    </div>
+
+    <!-- main layout -->
+    <div class="app-layout" id="app-layout">
+      <!-- sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-search">
+          <input type="text" id="inp-search" placeholder="Hledat produkt…" />
+        </div>
+        <div class="sidebar-products" id="sidebar-products">
+          <div class="sidebar-empty">Načtěte feed pro zobrazení produktů</div>
+        </div>
+        <div class="sidebar-bundles">
+          <div class="sidebar-bundles-header">
+            <span>Bundles</span>
+            <button class="btn btn-sm" id="btn-new-bundle">+ Nový bundle</button>
+          </div>
+          <div id="bundle-list"></div>
+        </div>
+      </aside>
+
+      <!-- main workspace -->
+      <main class="main-workspace" id="main-workspace">
+        <!-- stage: select -->
+        <div class="stage" id="stage-select">
+          <div class="stage-empty">
+            <div class="stage-empty-icon">◈</div>
+            <h2>Vyberte produkt ze sidebaru</h2>
+            <p>Po výběru produktu budete moci generovat bannery ve všech formátech.</p>
+          </div>
+        </div>
+
+        <!-- stage: configure -->
+        <div class="stage hidden" id="stage-configure">
+          <div class="configure-panel">
+            <div class="configure-product-preview" id="cfg-product-preview"></div>
+            <div class="configure-options">
+              <div class="field-group">
+                <label>Počet variant: <span id="cfg-count-label">7</span></label>
+                <input type="range" id="cfg-count" min="5" max="10" value="7" />
+              </div>
+              <div class="field-group">
+                <label>Šablony</label>
+                <div class="template-checks" id="template-checks"></div>
+              </div>
+              <button class="btn btn-primary btn-lg" id="btn-generate">Generovat bannery</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- stage: workspace -->
+        <div class="stage hidden" id="stage-workspace">
+          <div class="workspace-topbar">
+            <button class="btn btn-outline" id="btn-back">← Zpět</button>
+            <span class="workspace-product-name" id="ws-product-name"></span>
+            <div class="workspace-actions">
+              <button class="btn btn-outline" id="btn-export-bulk">Exportovat schválené</button>
+              <button class="btn btn-primary" id="btn-save-project">Uložit projekt</button>
+            </div>
+          </div>
+          <div class="variant-grid" id="variant-grid"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Editor Modal -->
+  <div class="modal-overlay hidden" id="editor-modal">
+    <div class="modal-editor">
+      <div class="modal-editor-left" id="editor-previews"></div>
+      <div class="modal-editor-right">
+        <div class="modal-editor-header">
+          <h3>Upravit variant</h3>
+          <button class="btn-close" id="btn-close-editor">✕</button>
+        </div>
+        <div class="editor-fields" id="editor-fields"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Projects Modal -->
+  <div class="modal-overlay hidden" id="projects-modal">
+    <div class="modal-standard">
+      <div class="modal-header">
+        <h3>Projekty</h3>
+        <button class="btn-close" id="btn-close-projects">✕</button>
+      </div>
+      <div class="modal-body" id="projects-list"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="btn-import-json">Importovat JSON</button>
+        <input type="file" id="inp-import-file" accept=".json" class="hidden" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal-overlay hidden" id="export-modal">
+    <div class="modal-standard">
+      <div class="modal-header">
+        <h3>Export</h3>
+        <button class="btn-close" id="btn-close-export">✕</button>
+      </div>
+      <div class="modal-body" id="export-body"></div>
+    </div>
+  </div>
+
+  <script>
+'use strict';
+
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+const FORMATS = [
+  { id:'f169', name:'16:9', width:1200, height:675  },
+  { id:'f45',  name:'4:5',  width:800,  height:1000 },
+  { id:'f11',  name:'1:1',  width:800,  height:800  },
+  { id:'f916', name:'9:16', width:675,  height:1200 },
+];
+
+const COLOR_SCHEMES = [
+  { id:'gold_dark',  name:'Gold & Dark',    bg:'#1a1a2e', bg2:'#16213e', accent:'#d4af37', accent2:'#f0c040', text:'#ffffff', textMuted:'rgba(255,255,255,0.6)', btnBg:'#d4af37', btnText:'#1a1a2e' },
+  { id:'crimson',    name:'Crimson & White', bg:'#ffffff', bg2:'#fdf0f0', accent:'#c41e3a', accent2:'#e83c5a', text:'#1a1a1a', textMuted:'#666666',               btnBg:'#c41e3a', btnText:'#ffffff' },
+  { id:'teal_light', name:'Teal Light',      bg:'#f0faf8', bg2:'#e0f4f0', accent:'#00897b', accent2:'#26a69a', text:'#1a2e2b', textMuted:'#4a6b66',               btnBg:'#00897b', btnText:'#ffffff' },
+  { id:'midnight',   name:'Midnight Purple', bg:'#1a0a2e', bg2:'#2d1b69', accent:'#a78bfa', accent2:'#c4b5fd', text:'#ffffff', textMuted:'rgba(255,255,255,0.6)', btnBg:'#a78bfa', btnText:'#1a0a2e' },
+  { id:'warm_sand',  name:'Warm Sand',       bg:'#fdf6ec', bg2:'#f5e8d0', accent:'#8b5e3c', accent2:'#a07040', text:'#2c1a0e', textMuted:'#6b4226',               btnBg:'#8b5e3c', btnText:'#ffffff' },
+];
+
+const TEMPLATES = [
+  { id:'clean_packshot', name:'Clean Packshot', icon:'◫' },
+  { id:'arrow_benefits', name:'Se šipkama',     icon:'◈' },
+  { id:'hero_banner',    name:'Hero Banner',    icon:'▣' },
+  { id:'price_promo',    name:'Cena v centru',  icon:'◉' },
+  { id:'dark_luxury',    name:'Dark Premium',   icon:'◆' },
+];
+
+const CTA_OPTIONS   = ['Koupit nyní','Zjistit více','Objednat','Vyzkoušet','Přidat do košíku','Zobrazit produkt'];
+const BADGE_OPTIONS = ['','NOVINKA','BESTSELLER','TOP PRODUKT','VÝPRODEJ',''];
+const PROJECTS_KEY  = 'tiande_banner_projects_v1';
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+const APP = {
+  products: [],
+  bundles: [],
+  selectedProduct: null,
+  variants: [],
+  editingVariantId: null,
+  project: null,
+};
+
+// ─────────────────────────────────────────────
+// GENERIC HELPERS
+// ─────────────────────────────────────────────
+const $  = id => document.getElementById(id);
+
+function uid() { return Math.random().toString(36).slice(2,10); }
+
+function formatPrice(n) {
+  if (!n || n <= 0) return '';
+  return new Intl.NumberFormat('cs-CZ',{style:'currency',currency:'CZK',maximumFractionDigits:0}).format(n);
+}
+
+function pick(arr, i) { return arr[((i % arr.length) + arr.length) % arr.length]; }
+
+let _toastTimer;
+function showToast(msg, type='success') {
+  let t = $('toast');
+  if (!t) { t = document.createElement('div'); t.id='toast'; t.className='toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(()=>{ t.className=`toast ${type}`; }, 3200);
+}
+
+function downloadBlob(urlOrBlob, filename) {
+  const a = document.createElement('a');
+  a.href = typeof urlOrBlob === 'string' ? urlOrBlob : URL.createObjectURL(urlOrBlob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function hexToRgba(hex, a) {
+  const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+function getScheme(id) { return COLOR_SCHEMES.find(c=>c.id===id) || COLOR_SCHEMES[0]; }
+
+// ─────────────────────────────────────────────
+// CANVAS PRIMITIVES
+// ─────────────────────────────────────────────
+function roundRect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+function wrapText(ctx, text, x, y, maxW, lh, align='left') {
+  if (!text) return 0;
+  const words = String(text).split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? line+' '+w : w;
+    if (ctx.measureText(test).width > maxW && line) { lines.push(line); line=w; }
+    else line=test;
+  }
+  if (line) lines.push(line);
+  const saved = ctx.textAlign; ctx.textAlign=align;
+  lines.forEach((l,i)=>ctx.fillText(l, x, y+i*lh));
+  ctx.textAlign=saved;
+  return lines.length;
+}
+
+function imgContain(ctx, img, x, y, w, h, placeholder='') {
+  if (!img) {
+    ctx.save(); ctx.fillStyle='rgba(150,150,150,0.1)'; roundRect(ctx,x,y,w,h,8); ctx.fill();
+    if (placeholder) {
+      ctx.fillStyle='rgba(150,150,150,0.4)'; ctx.font='12px "DM Sans",sans-serif';
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(placeholder,x+w/2,y+h/2);
+    }
+    ctx.restore(); return;
+  }
+  const s=Math.min(w/img.naturalWidth,h/img.naturalHeight);
+  ctx.drawImage(img, x+(w-img.naturalWidth*s)/2, y+(h-img.naturalHeight*s)/2, img.naturalWidth*s, img.naturalHeight*s);
+}
+
+function drawGradBg(ctx, W, H, c1, c2, angle=135) {
+  const r=angle*Math.PI/180, cx=W/2, cy=H/2, len=Math.hypot(W,H)/2;
+  const g=ctx.createLinearGradient(cx-Math.cos(r)*len, cy-Math.sin(r)*len, cx+Math.cos(r)*len, cy+Math.sin(r)*len);
+  g.addColorStop(0,c1); g.addColorStop(1,c2);
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+}
+
+function drawArrow(ctx, x1, y1, x2, y2, color='#888', lw=1.5, hs=8) {
+  const a=Math.atan2(y2-y1,x2-x1);
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=lw; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2); ctx.lineTo(x2-hs*Math.cos(a-Math.PI/6), y2-hs*Math.sin(a-Math.PI/6));
+  ctx.moveTo(x2,y2); ctx.lineTo(x2-hs*Math.cos(a+Math.PI/6), y2-hs*Math.sin(a+Math.PI/6));
+  ctx.stroke(); ctx.restore();
+}
+
+function drawLogo(ctx, x, y, color, size=11) {
+  ctx.save(); ctx.fillStyle=color; ctx.font=`600 ${size}px "DM Sans",sans-serif`;
+  ctx.textAlign='right'; ctx.textBaseline='bottom'; ctx.fillText('Království tianDe',x,y); ctx.restore();
+}
+
+function drawBadge(ctx, text, cx, cy, bg, fg, fs=12) {
+  if (!text) return;
+  ctx.save(); ctx.font=`700 ${fs}px "DM Sans",sans-serif`;
+  const tw=ctx.measureText(text).width, ph=fs+10, pw=tw+ph;
+  ctx.fillStyle=bg; roundRect(ctx,cx-pw/2,cy-ph/2,pw,ph,ph/2); ctx.fill();
+  ctx.fillStyle=fg; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,cx,cy); ctx.restore();
+}
+
+function drawBtn(ctx, text, x, y, w, h, bg, fg, r=8) {
+  if (!text) return;
+  ctx.save(); ctx.fillStyle=bg; roundRect(ctx,x,y,w,h,r); ctx.fill();
+  ctx.fillStyle=fg; ctx.font=`700 ${Math.round(h*0.38)}px "DM Sans",sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,x+w/2,y+h/2); ctx.restore();
+}
+
+// ─────────────────────────────────────────────
+// IMAGE CACHE
+// ─────────────────────────────────────────────
+const IMG_CACHE = new Map();
+function loadImg(url) {
+  if (!url) return Promise.resolve(null);
+  if (IMG_CACHE.has(url)) return IMG_CACHE.get(url);
+  const p = new Promise(res=>{
+    const img=new Image(); img.crossOrigin='anonymous';
+    img.onload=()=>res(img); img.onerror=()=>res(null); img.src=url;
+  });
+  IMG_CACHE.set(url,p); return p;
+}
+
+// ─────────────────────────────────────────────
+// TEMPLATE RENDERERS
+// ─────────────────────────────────────────────
+function tplCleanPackshot(ctx, v, fmt, img) {
+  const cs=getScheme(v.colorScheme), W=fmt.width, H=fmt.height;
+  drawGradBg(ctx,W,H,cs.bg,cs.bg2);
+
+  // soft accent blob
+  ctx.save(); ctx.globalAlpha=0.07; ctx.fillStyle=cs.accent;
+  ctx.beginPath(); ctx.ellipse(W*0.78,H*0.5,H*0.55,H*0.55,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  let iX,iY,iW,iH, tX,tY,tMaxW;
+  const portrait = fmt.id==='f45'||fmt.id==='f916';
+
+  if (fmt.id==='f169') { iX=W*0.46;iY=H*0.06;iW=W*0.50;iH=H*0.88; tX=55;tY=H*0.14;tMaxW=W*0.38; }
+  else if (fmt.id==='f11') { iX=W*0.44;iY=H*0.08;iW=W*0.50;iH=H*0.84; tX=44;tY=H*0.14;tMaxW=W*0.38; }
+  else if (fmt.id==='f45') { iX=W*0.04;iY=H*0.04;iW=W*0.92;iH=H*0.46; tX=40;tY=H*0.53;tMaxW=W*0.88; }
+  else                      { iX=W*0.07;iY=H*0.05;iW=W*0.86;iH=H*0.47; tX=38;tY=H*0.54;tMaxW=W*0.84; }
+
+  imgContain(ctx,img,iX,iY,iW,iH,v.product?.code||'');
+  if (v.badge) drawBadge(ctx,v.badge,W-68,28,cs.accent,cs.btnText,11);
+  drawLogo(ctx,W-16,H-14,cs.textMuted,11);
+
+  let ty=tY;
+  const big = !portrait;
+  const hlSz = big?44:36, hlLh = big?52:44;
+
+  if (v.subheadline) {
+    ctx.fillStyle=cs.accent; ctx.font=`600 ${big?12:13}px "DM Sans",sans-serif`;
+    ctx.textAlign='left'; ctx.textBaseline='top';
+    ctx.fillText(v.subheadline.toUpperCase(),tX,ty); ty+=big?24:26;
+  }
+  ctx.fillStyle=cs.text; ctx.font=`800 ${hlSz}px "DM Sans",sans-serif`;
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  ty+=wrapText(ctx,v.headline,tX,ty,tMaxW,hlLh)*hlLh+12;
+
+  if (v.price) {
+    ctx.fillStyle=cs.accent; ctx.font=`800 ${big?28:24}px "DM Sans",sans-serif`;
+    ctx.fillText(v.price,tX,ty); ty+=big?44:38;
+  }
+  if (v.cta) {
+    ctx.font=`700 15px "DM Sans",sans-serif`;
+    const cW=Math.min(ctx.measureText(v.cta).width+44,260), cH=big?46:42;
+    drawBtn(ctx,v.cta,tX,Math.min(ty,H-cH-24),cW,cH,cs.btnBg,cs.btnText);
+  }
+}
+
+function tplArrowBenefits(ctx, v, fmt, img) {
+  const cs=getScheme(v.colorScheme), W=fmt.width, H=fmt.height;
+  const isDark = cs.bg.startsWith('#1')||cs.bg.startsWith('#0')||cs.bg.startsWith('#2');
+  const bg1=isDark?'#f8f8f8':cs.bg, bg2=isDark?'#efefef':cs.bg2;
+  drawGradBg(ctx,W,H,bg1,bg2,150);
+  const textC=isDark?'#1a1a1a':cs.text, arrowC=isDark?cs.accent:cs.accent;
+
+  let pCx,pCy,pSz;
+  if (fmt.id==='f169')      { pCx=W*0.50; pCy=H*0.50; pSz=H*0.70; }
+  else if (fmt.id==='f11')  { pCx=W*0.50; pCy=H*0.47; pSz=H*0.58; }
+  else if (fmt.id==='f45')  { pCx=W*0.50; pCy=H*0.46; pSz=H*0.44; }
+  else                      { pCx=W*0.50; pCy=H*0.44; pSz=H*0.36; }
+
+  const pR = pSz*0.5;
+  ctx.save(); ctx.globalAlpha=0.05; ctx.fillStyle=arrowC;
+  ctx.beginPath(); ctx.ellipse(pCx,pCy,pR*1.1,pR*1.1,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  imgContain(ctx,img,pCx-pSz/2,pCy-pSz/2,pSz,pSz,v.product?.code||'');
+
+  const bens = (v.benefits||[]).slice(0,8);
+  const bSz  = fmt.id==='f916'?11:(fmt.id==='f45'?12:13);
+  const bMaxW= fmt.id==='f169'?W*0.17:W*0.26;
+
+  // position specs per format
+  function buildPositions(count) {
+    const pos=[];
+    if (fmt.id==='f11') {
+      const defs=[
+        { a:'right', tx:pCx-pR-16, ty:pCy-pR*0.5, tipX:pCx-pR, tipY:pCy-pR*0.25 },
+        { a:'right', tx:pCx-pR-16, ty:pCy+pR*0.4, tipX:pCx-pR, tipY:pCy+pR*0.2  },
+        { a:'left',  tx:pCx+pR+16, ty:pCy-pR*0.5, tipX:pCx+pR, tipY:pCy-pR*0.25 },
+        { a:'left',  tx:pCx+pR+16, ty:pCy+pR*0.4, tipX:pCx+pR, tipY:pCy+pR*0.2  },
+        { a:'right', tx:pCx-pR-16, ty:pCy-pR*1.35,tipX:pCx-pR*0.6,tipY:pCy-pR   },
+        { a:'left',  tx:pCx+pR+16, ty:pCy-pR*1.35,tipX:pCx+pR*0.6,tipY:pCy-pR   },
+        { a:'right', tx:pCx-pR-16, ty:pCy+pR*1.35,tipX:pCx-pR*0.6,tipY:pCy+pR   },
+        { a:'left',  tx:pCx+pR+16, ty:pCy+pR*1.35,tipX:pCx+pR*0.6,tipY:pCy+pR   },
+      ];
+      return defs.slice(0,count);
+    }
+    if (fmt.id==='f169') {
+      const half=Math.floor(count/2), rem=count-half;
+      const lx=pCx-pR-W*0.05;
+      const rx=pCx+pR+W*0.01;
+      const lyStep=H/(half+1), ryStep=H/(rem+1);
+      for(let i=0;i<half;i++) pos.push({a:'right',tx:lx, ty:lyStep*(i+1), tipX:pCx-pR, tipY:pCy+(i-(half-1)/2)*pR*0.7});
+      for(let i=0;i<rem;i++)  pos.push({a:'left', tx:rx, ty:ryStep*(i+1), tipX:pCx+pR, tipY:pCy+(i-(rem-1)/2)*pR*0.7});
+      return pos;
+    }
+    // 4:5 / 9:16
+    const side=Math.floor(count/2), rem2=count-side;
+    const yStep=pSz*0.95/Math.max(side,1), startY=pCy-pSz*0.38;
+    const lx2=pCx-pR-14, rx2=pCx+pR+14;
+    for(let i=0;i<side;i++) pos.push({a:'right',tx:lx2,ty:startY+i*yStep,tipX:pCx-pR,tipY:startY+i*yStep});
+    for(let i=0;i<rem2;i++) pos.push({a:'left', tx:rx2,ty:startY+i*yStep,tipX:pCx+pR,tipY:startY+i*yStep});
+    return pos;
+  }
+
+  const positions=buildPositions(bens.length||4);
+  bens.forEach((ben,i)=>{
+    const p=positions[i]; if(!p) return;
+    ctx.save(); ctx.fillStyle=textC; ctx.font=`600 ${bSz}px "DM Sans",sans-serif`;
+    ctx.textAlign=p.a; ctx.textBaseline='middle';
+    const words=ben.split(' '); const lines=[]; let line='';
+    for(const w of words){const t=line?line+' '+w:w; if(ctx.measureText(t).width>bMaxW&&line){lines.push(line);line=w;}else line=t;}
+    if(line)lines.push(line);
+    const lh=bSz+5, bH=lines.length*lh;
+    lines.forEach((l,li)=>ctx.fillText(l,p.tx,p.ty-bH/2+li*lh+lh/2));
+    ctx.restore();
+    // dot
+    const dX=p.a==='right'?p.tx+6:p.tx-6;
+    ctx.save(); ctx.fillStyle=arrowC; ctx.beginPath(); ctx.arc(dX,p.ty,3,0,Math.PI*2); ctx.fill(); ctx.restore();
+    // arrow
+    const aStartX=p.a==='right'?dX-10:dX+10;
+    drawArrow(ctx,aStartX,p.ty,p.tipX,p.tipY,arrowC,1.2,7);
+  });
+
+  drawLogo(ctx,W-16,H-14,isDark?'#aaaaaa':cs.textMuted,11);
+
+  // brand name below product
+  if (v.headline) {
+    ctx.fillStyle=cs.accent; ctx.font=`700 ${bSz+1}px "DM Sans",sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText(v.headline,W/2,H-30);
+  }
+}
+
+function tplHeroBanner(ctx, v, fmt, img) {
+  const cs=getScheme(v.colorScheme), W=fmt.width, H=fmt.height;
+  ctx.fillStyle=cs.bg; ctx.fillRect(0,0,W,H);
+
+  const portrait=fmt.id==='f45'||fmt.id==='f916';
+  if (portrait) { ctx.fillStyle=cs.accent; ctx.fillRect(0,0,W,H*0.43); }
+  else           { ctx.fillStyle=cs.accent; ctx.fillRect(0,0,W*0.43,H); }
+
+  let tX,tY,tMaxW,iX,iY,iW,iH;
+  if (fmt.id==='f169') { tX=36;tY=H*0.14;tMaxW=W*0.38; iX=W*0.44;iY=H*0.06;iW=W*0.52;iH=H*0.88; }
+  else if (fmt.id==='f11') { tX=34;tY=H*0.14;tMaxW=W*0.38; iX=W*0.44;iY=H*0.10;iW=W*0.52;iH=H*0.80; }
+  else if (fmt.id==='f45') { tX=30;tY=H*0.06;tMaxW=W*0.88; iX=W*0.05;iY=H*0.44;iW=W*0.90;iH=H*0.48; }
+  else                     { tX=30;tY=H*0.06;tMaxW=W*0.88; iX=W*0.07;iY=H*0.44;iW=W*0.86;iH=H*0.48; }
+
+  imgContain(ctx,img,iX,iY,iW,iH,'');
+
+  const onAccent=!portrait;
+  let ty=tY;
+  ctx.fillStyle=onAccent?'#fff':(cs.bg==='#ffffff'?cs.text:'#fff');
+  ctx.font=`800 ${portrait?38:44}px "DM Sans",sans-serif`; ctx.textAlign='left'; ctx.textBaseline='top';
+  ty+=wrapText(ctx,v.headline,tX,ty,tMaxW,portrait?46:52)*(portrait?46:52)+12;
+
+  if (v.subheadline) {
+    ctx.fillStyle=onAccent?'rgba(255,255,255,0.8)':cs.textMuted;
+    ctx.font=`400 ${portrait?15:16}px "DM Sans",sans-serif`;
+    ty+=wrapText(ctx,v.subheadline,tX,ty,tMaxW,22)*22+12;
+  }
+  if (v.price) {
+    ctx.fillStyle=onAccent?'#fff':cs.accent; ctx.font=`800 ${portrait?24:28}px "DM Sans",sans-serif`;
+    ctx.fillText(v.price,tX,ty); ty+=portrait?38:44;
+  }
+  if (v.cta) {
+    const cH=44, cW=200, cY=Math.min(ty, (portrait?iY:H)-cH-16);
+    drawBtn(ctx,v.cta,tX,cY,cW,cH,onAccent?'#fff':cs.btnBg,onAccent?cs.accent:cs.btnText);
+  }
+  if (v.badge) drawBadge(ctx,v.badge,W-64,28,cs.bg,cs.accent,11);
+  drawLogo(ctx,W-16,H-14,'rgba(255,255,255,0.4)',11);
+}
+
+function tplPricePromo(ctx, v, fmt, img) {
+  const cs=getScheme(v.colorScheme), W=fmt.width, H=fmt.height;
+  drawGradBg(ctx,W,H,cs.bg,cs.bg2,145);
+  const cx=W/2;
+
+  if (fmt.id==='f169') {
+    let ty=H*0.14; const tX=56, tMaxW=W*0.40;
+    if (v.price) {
+      ctx.fillStyle=cs.accent; ctx.font=`800 68px "DM Sans",sans-serif`;
+      ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(v.price,tX,ty); ty+=84;
+    }
+    ctx.fillStyle=cs.text; ctx.font=`700 34px "DM Sans",sans-serif`; ctx.textAlign='left';
+    ty+=wrapText(ctx,v.headline,tX,ty,tMaxW,42)*42+14;
+    const bens=(v.benefits||[]).slice(0,3);
+    ctx.font=`400 15px "DM Sans",sans-serif`; ctx.fillStyle=cs.textMuted;
+    bens.forEach(b=>{ ctx.fillText('✓ '+b,tX,ty); ty+=24; }); ty+=10;
+    if (v.cta) drawBtn(ctx,v.cta,tX,Math.min(ty,H-70),200,48,cs.btnBg,cs.btnText);
+    imgContain(ctx,img,W*0.46,H*0.06,W*0.50,H*0.88,'');
+  } else {
+    const iSz=fmt.id==='f11'?H*0.36:H*0.28;
+    let ty=H*0.06;
+    if (v.badge) { drawBadge(ctx,v.badge,cx,ty+14,cs.accent,cs.btnText,12); ty+=44; }
+    if (v.price) {
+      ctx.fillStyle=cs.accent; ctx.font=`800 ${fmt.id==='f11'?60:50}px "DM Sans",sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText(v.price,cx,ty); ty+=fmt.id==='f11'?76:64;
+    }
+    imgContain(ctx,img,cx-iSz/2,ty,iSz,iSz,''); ty+=iSz+14;
+    ctx.fillStyle=cs.text; ctx.font=`700 ${fmt.id==='f11'?20:18}px "DM Sans",sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    ty+=wrapText(ctx,v.headline,cx,ty,W*0.88,26,'center')*26+12;
+    const bens=(v.benefits||[]).slice(0,fmt.id==='f11'?3:4);
+    ctx.font=`400 13px "DM Sans",sans-serif`; ctx.fillStyle=cs.textMuted; ctx.textAlign='center';
+    bens.forEach(b=>{ ctx.fillText('• '+b,cx,ty); ty+=21; }); ty+=8;
+    if (v.cta) drawBtn(ctx,v.cta,cx-100,Math.min(ty,H-62),200,44,cs.btnBg,cs.btnText);
+  }
+  drawLogo(ctx,W-16,H-14,cs.textMuted,11);
+}
+
+function tplDarkLuxury(ctx, v, fmt, img) {
+  const W=fmt.width, H=fmt.height;
+  const cs={ bg:'#0d0d1a',bg2:'#1a0a2e',accent:'#d4af37',text:'#fff',textMuted:'rgba(255,255,255,0.5)',btnBg:'#d4af37',btnText:'#0d0d1a' };
+  drawGradBg(ctx,W,H,cs.bg,cs.bg2);
+
+  // corner accents
+  const cm=22, cl=18;
+  ctx.save(); ctx.strokeStyle=cs.accent; ctx.lineWidth=1.5; ctx.globalAlpha=0.4;
+  [[cm,cm,cm+cl,cm],[cm,cm,cm,cm+cl],[W-cm,cm,W-cm-cl,cm],[W-cm,cm,W-cm,cm+cl],
+   [cm,H-cm,cm+cl,H-cm],[cm,H-cm,cm,H-cm-cl],[W-cm,H-cm,W-cm-cl,H-cm],[W-cm,H-cm,W-cm,H-cm-cl]
+  ].forEach(([x1,y1,x2,y2])=>{ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); });
+  ctx.restore();
+
+  // glow
+  const portrait=fmt.id==='f45'||fmt.id==='f916';
+  const gCx=portrait?W/2:W*0.67, gCy=portrait?H*0.38:H*0.5, gR=Math.min(W,H)*0.38;
+  const grd=ctx.createRadialGradient(gCx,gCy,0,gCx,gCy,gR);
+  grd.addColorStop(0,hexToRgba(cs.accent,0.14)); grd.addColorStop(1,'transparent');
+  ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+
+  let iX,iY,iW,iH,tX,tY,tMaxW;
+  if (fmt.id==='f169') { iX=W*0.41;iY=H*0.08;iW=W*0.54;iH=H*0.84; tX=48;tY=H*0.16;tMaxW=W*0.36; }
+  else if (fmt.id==='f11') { iX=W*0.42;iY=H*0.12;iW=W*0.52;iH=H*0.76; tX=42;tY=H*0.16;tMaxW=W*0.36; }
+  else if (fmt.id==='f45') { iX=W*0.05;iY=H*0.06;iW=W*0.90;iH=H*0.42; tX=42;tY=H*0.52;tMaxW=W*0.88; }
+  else                     { iX=W*0.08;iY=H*0.06;iW=W*0.84;iH=H*0.40; tX=42;tY=H*0.50;tMaxW=W*0.84; }
+
+  imgContain(ctx,img,iX,iY,iW,iH,'');
+  if (v.badge) drawBadge(ctx,v.badge,W-66,28,cs.accent,cs.btnText,11);
+
+  // thin gold rule
+  ctx.save(); ctx.strokeStyle=cs.accent; ctx.lineWidth=1.5; ctx.globalAlpha=0.5;
+  ctx.beginPath(); ctx.moveTo(tX,tY-14); ctx.lineTo(tX+Math.min(tMaxW*0.55,170),tY-14); ctx.stroke();
+  ctx.restore();
+
+  let ty=tY;
+  ctx.fillStyle=cs.text; ctx.font=`800 ${portrait?34:42}px "DM Sans",sans-serif`;
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  ty+=wrapText(ctx,v.headline,tX,ty,tMaxW,portrait?42:50)*(portrait?42:50)+12;
+  if (v.subheadline) {
+    ctx.fillStyle=cs.textMuted; ctx.font=`400 15px "DM Sans",sans-serif`;
+    ty+=wrapText(ctx,v.subheadline,tX,ty,tMaxW,22)*22+12;
+  }
+  if (v.price) {
+    ctx.fillStyle=cs.accent; ctx.font=`800 28px "DM Sans",sans-serif`;
+    ctx.fillText(v.price,tX,ty); ty+=44;
+  }
+  if (v.cta) drawBtn(ctx,v.cta,tX,Math.min(ty,H-70),200,46,cs.btnBg,cs.btnText);
+  drawLogo(ctx,W-16,H-14,cs.textMuted,11);
+}
+
+// ─────────────────────────────────────────────
+// RENDER PIPELINE
+// ─────────────────────────────────────────────
+async function renderToCanvas(canvas, v, fmt, product) {
+  canvas.width=fmt.width; canvas.height=fmt.height;
+  const ctx=canvas.getContext('2d');
+  const url=v.imageUrl||(product?.packshot)||null;
+  const img=url?await loadImg(url):null;
+  switch(v.template) {
+    case 'clean_packshot': tplCleanPackshot(ctx,v,fmt,img); break;
+    case 'arrow_benefits': tplArrowBenefits(ctx,v,fmt,img); break;
+    case 'hero_banner':    tplHeroBanner(ctx,v,fmt,img);    break;
+    case 'price_promo':    tplPricePromo(ctx,v,fmt,img);    break;
+    case 'dark_luxury':    tplDarkLuxury(ctx,v,fmt,img);    break;
+    default:               tplCleanPackshot(ctx,v,fmt,img);
+  }
+}
+
+async function genPreviews(v, product) {
+  v.previews={};
+  for (const fmt of FORMATS) {
+    try {
+      const c=document.createElement('canvas');
+      await renderToCanvas(c,v,fmt,product);
+      v.previews[fmt.id]=c.toDataURL('image/png');
+    } catch { v.previews[fmt.id]=''; }
+  }
+}
+
+// ─────────────────────────────────────────────
+// FEED / GQL
+// ─────────────────────────────────────────────
+async function gql(query, variables={}) {
+  const res=await fetch($('inp-worker').value.trim(),{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-Access-Token':$('inp-token').value.trim()},
+    body:JSON.stringify({query,variables}),
+  });
+  const text=await res.text();
+  let json; try{ json=JSON.parse(text); }catch{ throw new Error('API nevrátilo JSON'); }
+  if(json.errors) throw new Error(json.errors.map(e=>e.message).join('\n'));
+  if(!json.data)  throw new Error('Chybí data v odpovědi.');
+  return json.data;
+}
+
+const Q_EXT = `query P($offset:Int,$limit:Int){products(offset:$offset,limit:$limit){items{id title code inStore price{withVat} description images{url alt} parameters{name value}} hasNextPage}}`;
+const Q_MIN = `query P($offset:Int,$limit:Int){products(offset:$offset,limit:$limit){items{id title code inStore price{withVat}} hasNextPage}}`;
+
+function parseBenList(html) {
+  if (!html) return [];
+  const d=document.createElement('div'); d.innerHTML=html;
+  const lis=d.querySelectorAll('ul li');
+  if (lis.length>=2) return [...lis].map(l=>l.textContent.trim()).filter(Boolean).slice(0,8);
+  return [];
+}
+
+function normalizeProduct(raw) {
+  const imgs=(raw.images||[]).map(i=>i.url).filter(Boolean);
+  const bens=
+    parseBenList(raw.description).length>=2 ? parseBenList(raw.description) :
+    (raw.parameters||[]).filter(p=>p.value&&p.value!=='Ne'&&p.value!=='Ano').map(p=>`${p.name}: ${p.value}`).slice(0,6).length>=2
+      ? (raw.parameters||[]).filter(p=>p.value&&p.value!=='Ne'&&p.value!=='Ano').map(p=>`${p.name}: ${p.value}`).slice(0,6)
+      : ['Osvědčená kvalita','Přírodní složení','Viditelné výsledky','Šetrné k pokožce','Pro každý den','Testováno dermatology'];
+  return {
+    id:String(raw.id), title:raw.title||`Produkt ${raw.id}`, code:raw.code||'',
+    price:Number(raw.price?.withVat||0), packshot:imgs[0]||null, altImages:imgs.slice(1),
+    description:raw.description||'', parameters:raw.parameters||[], benefits:bens, stock:Number(raw.inStore||0),
+  };
+}
+
+async function loadFeedProducts() {
+  let offset=0, all=[], ext=true;
+  while(true){
+    let data;
+    try { data=await gql(ext?Q_EXT:Q_MIN,{offset,limit:200}); }
+    catch(e){ if(ext&&offset===0){ ext=false; data=await gql(Q_MIN,{offset,limit:200}); } else throw e; }
+    const items=data.products.items||[];
+    all.push(...items.map(normalizeProduct));
+    if(!data.products.hasNextPage||items.length===0||all.length>=2000) break;
+    offset+=200;
+  }
+  return all;
+}
+
+// ─────────────────────────────────────────────
+// VARIANT GENERATOR
+// ─────────────────────────────────────────────
+function makeHeadlines(product) {
+  const n=product.title, s=n.split(' ').slice(0,3).join(' ');
+  return [n,`Objevte ${s}`,`${s} – výsledky, které vidíte`,`Přirozená péče s ${s}`,
+          `Síla přírody v každé kapce`,`Váš rituál pro krásu`,`${s} pro každý den`,`Pocit luxusu každý den`];
+}
+
+async function generateVariants(product, config) {
+  const {count, enabledTemplates} = config;
+  const headlines=makeHeadlines(product);
+  const pool=TEMPLATES.filter(t=>enabledTemplates.includes(t.id));
+  if (!pool.length) return [];
+  const variants=[];
+  for(let i=0;i<count;i++){
+    const v={
+      id:uid(),
+      product:{id:product.id,title:product.title,code:product.code},
+      template: i===0?'clean_packshot':pick(pool,i).id,
+      colorScheme: i===0?'gold_dark':pick(COLOR_SCHEMES,i+1).id,
+      headline: headlines[i%headlines.length],
+      subheadline: i%3===0?'':(i%3===1?'Prémiová péče':'Království tianDe'),
+      cta: pick(CTA_OPTIONS,i),
+      badge: pick(BADGE_OPTIONS,i),
+      price: formatPrice(product.price),
+      benefits: [...product.benefits].slice(0,i%2===0?4:6),
+      imageUrl: product.packshot,
+      imageMode:'packshot',
+      status:'pending',
+      notes:'',
+      previews:{},
+    };
+    variants.push(v);
+  }
+  for(const v of variants) await genPreviews(v,product);
+  return variants;
+}
+
+// ─────────────────────────────────────────────
+// PROJECT PERSISTENCE
+// ─────────────────────────────────────────────
+function loadProjects() { try{ return JSON.parse(localStorage.getItem(PROJECTS_KEY)||'[]'); }catch{ return []; } }
+function saveProjectLS(p) {
+  const ps=loadProjects(), idx=ps.findIndex(x=>x.id===p.id);
+  if(idx>=0)ps[idx]=p; else ps.unshift(p);
+  localStorage.setItem(PROJECTS_KEY,JSON.stringify(ps.slice(0,20)));
+}
+function deleteProjectLS(id) { localStorage.setItem(PROJECTS_KEY,JSON.stringify(loadProjects().filter(p=>p.id!==id))); }
+function exportProjJSON(p) { downloadBlob(new Blob([JSON.stringify(p,null,2)],{type:'application/json'}),`project_${p.id}.json`); }
+
+// ─────────────────────────────────────────────
+// EXPORT
+// ─────────────────────────────────────────────
+async function exportPNG(v, fmtId) {
+  const fmt=FORMATS.find(f=>f.id===fmtId); if(!fmt)return;
+  try{
+    const c=document.createElement('canvas');
+    await renderToCanvas(c,v,fmt,APP.products.find(p=>p.id===v.product?.id)||null);
+    downloadBlob(c.toDataURL('image/png'),`banner_${v.id}_${fmt.name.replace(':','-')}.png`);
+    showToast('PNG staženo');
+  }catch(e){ showToast('Export selhal','error'); }
+}
+
+async function exportBulkZIP(variants) {
+  if(!variants.length){ showToast('Žádné schválené varianty','error'); return; }
+  showToast('Generuji ZIP…');
+  const zip=new JSZip();
+  const manifest={generated:new Date().toISOString(),product:APP.selectedProduct?.title,variants:[]};
+  for(const v of variants){
+    const folder=zip.folder(`variant_${v.id}`);
+    for(const fmt of FORMATS){
+      try{
+        const c=document.createElement('canvas');
+        await renderToCanvas(c,v,fmt,APP.products.find(p=>p.id===v.product?.id)||null);
+        folder.file(`${fmt.name.replace(':','-')}.png`,c.toDataURL('image/png').split(',')[1],{base64:true});
+      }catch{}
+    }
+    manifest.variants.push({id:v.id,template:v.template,colorScheme:v.colorScheme,headline:v.headline,status:v.status});
+  }
+  zip.file('manifest.json',JSON.stringify(manifest,null,2));
+  const blob=await zip.generateAsync({type:'blob'});
+  downloadBlob(blob,'tiande_banners.zip');
+  showToast(`ZIP: ${variants.length} variant × 4 formáty`);
+}
+
+// ─────────────────────────────────────────────
+// UI — STAGE SWITCHING
+// ─────────────────────────────────────────────
+function showStage(name) {
+  ['select','configure','workspace'].forEach(s=>{
+    $(`stage-${s}`)?.classList.toggle('hidden',s!==name);
+  });
+}
+
+// ─────────────────────────────────────────────
+// UI — PRODUCT LIST
+// ─────────────────────────────────────────────
+function renderProductList(q='') {
+  const el=$('sidebar-products');
+  const list=q?APP.products.filter(p=>p.title.toLowerCase().includes(q.toLowerCase())||p.code.toLowerCase().includes(q.toLowerCase())):APP.products;
+  if(!list.length){ el.innerHTML=`<div class="sidebar-empty">${q?'Žádné výsledky':'Načtěte feed pro zobrazení produktů'}</div>`; return; }
+  el.innerHTML=list.slice(0,150).map(p=>`
+    <div class="product-item${APP.selectedProduct?.id===p.id?' selected':''}" data-pid="${p.id}">
+      <div class="product-item-title">${p.title}</div>
+      <div class="product-item-meta"><span>${p.code}</span><span class="product-item-price">${formatPrice(p.price)}</span></div>
+    </div>`).join('');
+}
+
+function renderBundleList() {
+  const el=$('bundle-list');
+  el.innerHTML=APP.bundles.map(b=>`
+    <div class="bundle-item" data-bid="${b.id}">
+      <span>${b.name} (${b.productIds.length})</span>
+      <button class="btn-ghost" data-del-bundle="${b.id}">✕</button>
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// UI — CONFIGURE STAGE
+// ─────────────────────────────────────────────
+function renderConfigure(p) {
+  $('cfg-product-preview').innerHTML=`
+    ${p.packshot?`<img class="cfg-product-img" src="${p.packshot}" alt="" onerror="this.style.display='none'" />`:''}
+    <div class="cfg-product-info">
+      <h3>${p.title}</h3>
+      <div class="code">${p.code}</div>
+      <div class="price">${formatPrice(p.price)}</div>
+    </div>`;
+  $('template-checks').innerHTML=TEMPLATES.map(t=>`
+    <label class="template-check-item">
+      <input type="checkbox" name="tmpl" value="${t.id}" checked />
+      <span>${t.icon} ${t.name}</span>
+    </label>`).join('');
+}
+
+// ─────────────────────────────────────────────
+// UI — VARIANT GRID
+// ─────────────────────────────────────────────
+function variantCardHTML(v) {
+  const tmpl=TEMPLATES.find(t=>t.id===v.template)||TEMPLATES[0];
+  const cs=getScheme(v.colorScheme);
+  const sCls={pending:'status-pending',approved:'status-approved',rejected:'status-rejected'}[v.status];
+  const sLbl={pending:'Čeká',approved:'Schváleno',rejected:'Zamítnuto'}[v.status];
+  const prevs=FORMATS.map(f=>`
+    <div class="variant-preview-item">
+      ${v.previews[f.id]?`<img class="variant-preview-img" src="${v.previews[f.id]}" style="aspect-ratio:${f.width}/${f.height}" loading="lazy" />`
+        :`<div class="variant-preview-img" style="aspect-ratio:${f.width}/${f.height};background:#1a2235"></div>`}
+      <div class="variant-preview-label">${f.name}</div>
+    </div>`).join('');
+  return `<div class="variant-card" id="vcard-${v.id}">
+    <div class="variant-card-header">
+      <div class="variant-card-meta">
+        <span class="variant-scheme-dot" style="background:${cs.accent}"></span>
+        <span class="variant-template-name">${tmpl.icon} ${tmpl.name}</span>
+      </div>
+      <span class="status-badge ${sCls}">${sLbl}</span>
+    </div>
+    <div class="variant-headline" title="${v.headline}">${v.headline}</div>
+    <div class="variant-previews">${prevs}</div>
+    <div class="variant-card-actions">
+      <button class="btn btn-outline btn-sm" data-approve="${v.id}">✓</button>
+      <button class="btn btn-outline btn-sm" data-reject="${v.id}">✗</button>
+      <button class="btn btn-outline btn-sm" data-edit="${v.id}">✏ Upravit</button>
+      <button class="btn btn-outline btn-sm" data-dup="${v.id}">⧉</button>
+      <button class="btn btn-outline btn-sm" data-regen="${v.id}">↺</button>
+    </div>
+  </div>`;
+}
+
+function renderVariantGrid() {
+  if (APP.selectedProduct) $('ws-product-name').textContent=APP.selectedProduct.title;
+  const grid=$('variant-grid');
+  if(!APP.variants.length){ grid.innerHTML='<div style="padding:40px;color:rgba(255,255,255,0.4)">Žádné varianty</div>'; return; }
+  grid.innerHTML=APP.variants.map(variantCardHTML).join('');
+}
+
+function updateCard(v) {
+  const old=$(`vcard-${v.id}`);
+  if(old){ const tmp=document.createElement('div'); tmp.innerHTML=variantCardHTML(v); old.replaceWith(tmp.firstChild); }
+}
+
+// ─────────────────────────────────────────────
+// UI — EDITOR MODAL
+// ─────────────────────────────────────────────
+let edTimer=null;
+
+function openEditor(id) {
+  const v=APP.variants.find(x=>x.id===id); if(!v)return;
+  APP.editingVariantId=id;
+  $('editor-modal').classList.remove('hidden');
+  buildEditorPreviews(v);
+  buildEditorFields(v);
+}
+function closeEditor() { $('editor-modal').classList.add('hidden'); APP.editingVariantId=null; }
+
+function buildEditorPreviews(v) {
+  $('editor-previews').innerHTML=FORMATS.map(f=>`
+    <div class="editor-preview-item">
+      <img class="editor-preview-img" id="epv-${f.id}" src="${v.previews[f.id]||''}" style="aspect-ratio:${f.width}/${f.height}" />
+      <div class="editor-preview-label">${f.name} <button class="btn-ghost" data-dl-fmt="${f.id}" style="color:#6ea8ff">↓ PNG</button></div>
+    </div>`).join('');
+}
+
+function buildEditorFields(v) {
+  const tmplOpts=TEMPLATES.map(t=>`
+    <button class="template-option${v.template===t.id?' selected':''}" data-set-tpl="${t.id}">
+      <span class="template-option-icon">${t.icon}</span>${t.name}
+    </button>`).join('');
+  const schemeOpts=COLOR_SCHEMES.map(s=>`
+    <div class="scheme-option${v.colorScheme===s.id?' selected':''}" data-set-cs="${s.id}" title="${s.name}"
+      style="background:linear-gradient(135deg,${s.bg},${s.accent})"></div>`).join('');
+  const benItems=(v.benefits||[]).map((b,i)=>`
+    <div class="benefit-item">
+      <input type="text" value="${b}" data-bi="${i}" />
+      ${i>0?`<button class="btn-ghost" data-bi-up="${i}" title="Nahoru">↑</button>`:''}
+      <button class="btn-ghost" data-bi-del="${i}" title="Smazat">✕</button>
+    </div>`).join('');
+
+  $('editor-fields').innerHTML=`
+    <div class="editor-field"><label>Šablona</label><div class="template-selector">${tmplOpts}</div></div>
+    <div class="editor-field"><label>Barevné schéma</label><div class="scheme-selector">${schemeOpts}</div></div>
+    <div class="editor-field"><label>Headline</label><textarea id="ed-hl" rows="2">${v.headline}</textarea></div>
+    <div class="editor-field"><label>Subheadline</label><input type="text" id="ed-sh" value="${v.subheadline||''}" /></div>
+    <div class="editor-field"><label>CTA</label><input type="text" id="ed-cta" value="${v.cta||''}" /></div>
+    <div class="editor-field"><label>Badge</label><input type="text" id="ed-badge" value="${v.badge||''}" placeholder="např. NOVINKA" /></div>
+    <div class="editor-field"><label>Cena</label><input type="text" id="ed-price" value="${v.price||''}" /></div>
+    <div class="editor-field">
+      <label>Benefity</label>
+      <div class="benefits-list" id="ed-bens">${benItems}</div>
+      <button class="btn btn-outline btn-sm" id="btn-add-ben" style="margin-top:6px">+ Benefit</button>
+    </div>
+    <div class="editor-field">
+      <label>Obrázek</label>
+      <div class="asset-mode-btns">
+        <button class="asset-mode-btn${v.imageMode==='packshot'?' active':''}" data-amode="packshot">Packshot</button>
+        <button class="asset-mode-btn${v.imageMode==='lifestyle'?' active':''}" data-amode="lifestyle">Lifestyle</button>
+        <button class="asset-mode-btn${v.imageMode==='custom'?' active':''}" data-amode="custom">Vlastní URL</button>
+        <button class="asset-mode-btn" id="btn-upload">Upload</button>
+      </div>
+      <input type="url" id="ed-imgurl" placeholder="https://…" value="${v.imageUrl||''}" ${v.imageMode!=='custom'?'style="display:none"':''} />
+      <input type="file" id="inp-file" accept="image/*" class="hidden" />
+    </div>
+    <div class="editor-footer">
+      <button class="btn btn-outline" id="btn-ed-rej">✗ Zamítnout</button>
+      <button class="btn btn-primary" id="btn-ed-app">✓ Schválit</button>
+    </div>`;
+
+  bindEditorFields(v);
+}
+
+function readEditorIntoVariant(v) {
+  v.headline   = $('ed-hl')?.value    || v.headline;
+  v.subheadline= $('ed-sh')?.value    || '';
+  v.cta        = $('ed-cta')?.value   || '';
+  v.badge      = $('ed-badge')?.value || '';
+  v.price      = $('ed-price')?.value || '';
+  v.benefits   = [...document.querySelectorAll('[data-bi]')].map(i=>i.value).filter(Boolean);
+}
+
+function scheduleEditorRefresh(v) {
+  clearTimeout(edTimer);
+  edTimer=setTimeout(async()=>{
+    const product=APP.products.find(p=>p.id===v.product?.id)||null;
+    await genPreviews(v,product);
+    FORMATS.forEach(f=>{ const el=$(`epv-${f.id}`); if(el) el.src=v.previews[f.id]||''; });
+    updateCard(v);
+  },400);
+}
+
+function bindEditorFields(v) {
+  const sched=()=>{ readEditorIntoVariant(v); scheduleEditorRefresh(v); };
+  ['ed-hl','ed-sh','ed-cta','ed-badge','ed-price'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',sched); });
+
+  $('editor-fields').addEventListener('input', e=>{ if(e.target.dataset.bi!==undefined) sched(); });
+  $('editor-fields').addEventListener('click', e=>{
+    const t=e.target;
+    if(t.dataset.setTpl) { readEditorIntoVariant(v); v.template=t.dataset.setTpl; buildEditorFields(v); sched(); }
+    if(t.dataset.setCs)  { readEditorIntoVariant(v); v.colorScheme=t.dataset.setCs; buildEditorFields(v); sched(); }
+    if(t.dataset.biDel!==undefined) { readEditorIntoVariant(v); v.benefits.splice(+t.dataset.biDel,1); buildEditorFields(v); sched(); }
+    if(t.dataset.biUp!==undefined)  { readEditorIntoVariant(v); const i=+t.dataset.biUp; if(i>0)[v.benefits[i-1],v.benefits[i]]=[v.benefits[i],v.benefits[i-1]]; buildEditorFields(v); sched(); }
+    if(t.dataset.amode) {
+      readEditorIntoVariant(v);
+      v.imageMode=t.dataset.amode;
+      const prod=APP.products.find(p=>p.id===v.product?.id);
+      if(t.dataset.amode==='packshot')  v.imageUrl=prod?.packshot||null;
+      if(t.dataset.amode==='lifestyle') v.imageUrl=prod?.altImages?.[0]||prod?.packshot||null;
+      buildEditorFields(v); sched();
+    }
+    if(t.id==='btn-add-ben') { readEditorIntoVariant(v); v.benefits.push('Nový benefit'); buildEditorFields(v); sched(); }
+    if(t.id==='btn-upload') $('inp-file').click();
+    if(t.id==='btn-ed-app') { v.status='approved'; updateCard(v); closeEditor(); showToast('Schváleno'); }
+    if(t.id==='btn-ed-rej') { v.status='rejected'; updateCard(v); closeEditor(); }
+  });
+
+  $('editor-previews').addEventListener('click', e=>{
+    if(e.target.dataset.dlFmt) exportPNG(v,e.target.dataset.dlFmt);
+  });
+
+  const urlInp=$('ed-imgurl');
+  if(urlInp) urlInp.addEventListener('change',()=>{ v.imageUrl=urlInp.value; sched(); });
+  const fileInp=$('inp-file');
+  if(fileInp) fileInp.addEventListener('change',()=>{
+    const f=fileInp.files[0]; if(!f)return;
+    const r=new FileReader(); r.onload=e=>{ v.imageUrl=e.target.result; v.imageMode='custom'; buildEditorFields(v); sched(); };
+    r.readAsDataURL(f); fileInp.value='';
+  });
+}
+
+// ─────────────────────────────────────────────
+// UI — PROJECTS MODAL
+// ─────────────────────────────────────────────
+function openProjects() { $('projects-modal').classList.remove('hidden'); renderProjectsList(); }
+function renderProjectsList() {
+  const ps=loadProjects();
+  $('projects-list').innerHTML=ps.length
+    ? ps.map(p=>`<div class="project-item">
+        <div class="project-item-info">
+          <div class="project-item-name">${p.name||'Bez názvu'}</div>
+          <div class="project-item-meta">${p.product||'—'} · ${p.variantCount||0} variant · ${new Date(p.savedAt).toLocaleDateString('cs-CZ')}</div>
+        </div>
+        <div class="project-item-actions">
+          <button class="btn btn-outline btn-sm" data-load-p="${p.id}">Načíst</button>
+          <button class="btn btn-outline btn-sm" data-exp-p="${p.id}">JSON</button>
+          <button class="btn btn-outline btn-sm" data-del-p="${p.id}" style="color:#f06b6b">✕</button>
+        </div>
+      </div>`).join('')
+    : '<p style="color:rgba(255,255,255,0.4);font-size:13px">Žádné uložené projekty</p>';
+}
+
+// ─────────────────────────────────────────────
+// EVENT BINDING
+// ─────────────────────────────────────────────
+function bindAll() {
+  // connection toggle
+  $('btn-conn-toggle').onclick=()=>$('conn-bar').classList.toggle('open');
+
+  // load feed
+  $('btn-load-feed').onclick=async()=>{
+    const st=$('feed-status');
+    st.textContent='Načítám…';
+    try {
+      APP.products=await loadFeedProducts();
+      renderProductList();
+      st.textContent=`${APP.products.length} produktů`;
+      showToast(`Načteno ${APP.products.length} produktů`);
+    } catch(e) { st.textContent='Chyba!'; showToast(e.message,'error'); }
+  };
+
+  // search
+  $('inp-search').addEventListener('input',e=>renderProductList(e.target.value));
+
+  // product click
+  $('sidebar-products').addEventListener('click',e=>{
+    const item=e.target.closest('.product-item'); if(!item)return;
+    const p=APP.products.find(x=>x.id===item.dataset.pid); if(!p)return;
+    APP.selectedProduct=p;
+    renderProductList($('inp-search').value);
+    renderConfigure(p);
+    showStage('configure');
+  });
+
+  // count slider
+  $('cfg-count').addEventListener('input',e=>$('cfg-count-label').textContent=e.target.value);
+
+  // generate
+  $('btn-generate').onclick=async()=>{
+    if(!APP.selectedProduct)return;
+    const count=+$('cfg-count').value;
+    const enabled=[...document.querySelectorAll('input[name=tmpl]:checked')].map(c=>c.value);
+    if(!enabled.length){ showToast('Vyberte alespoň jednu šablonu','error'); return; }
+    $('btn-generate').textContent='Generuji…'; $('btn-generate').disabled=true;
+    try {
+      APP.variants=await generateVariants(APP.selectedProduct,{count,enabledTemplates:enabled});
+      showStage('workspace'); renderVariantGrid();
+      showToast(`${APP.variants.length} variant vygenerováno`);
+    } catch(e){ showToast(e.message,'error'); }
+    finally { $('btn-generate').textContent='Generovat bannery'; $('btn-generate').disabled=false; }
+  };
+
+  // back
+  $('btn-back').onclick=()=>showStage('configure');
+
+  // variant grid actions
+  $('variant-grid').addEventListener('click',async e=>{
+    const t=e.target;
+    if(t.dataset.approve){ const v=APP.variants.find(x=>x.id===t.dataset.approve); if(v){v.status='approved';updateCard(v);} }
+    if(t.dataset.reject) { const v=APP.variants.find(x=>x.id===t.dataset.reject);  if(v){v.status='rejected';updateCard(v);} }
+    if(t.dataset.edit)   openEditor(t.dataset.edit);
+    if(t.dataset.dup) {
+      const v=APP.variants.find(x=>x.id===t.dataset.dup); if(!v)return;
+      const clone=JSON.parse(JSON.stringify(v)); clone.id=uid(); clone.status='pending';
+      APP.variants.splice(APP.variants.indexOf(v)+1,0,clone);
+      renderVariantGrid(); showToast('Duplikováno');
+    }
+    if(t.dataset.regen) {
+      const idx=APP.variants.findIndex(x=>x.id===t.dataset.regen); if(idx<0)return;
+      const orig=t.textContent; t.textContent='…'; t.disabled=true;
+      try {
+        const [nv]=await generateVariants(APP.selectedProduct,{count:1,enabledTemplates:TEMPLATES.map(x=>x.id)});
+        if(nv){ APP.variants.splice(idx,1,nv); renderVariantGrid(); }
+      } catch(e){ showToast(e.message,'error'); }
+      finally { t.textContent=orig; t.disabled=false; }
+    }
+  });
+
+  // export bulk
+  $('btn-export-bulk').onclick=()=>{
+    const ok=APP.variants.filter(v=>v.status==='approved');
+    if(!ok.length){ showToast('Nejsou schválené varianty','error'); return; }
+    exportBulkZIP(ok);
+  };
+
+  // save project
+  $('btn-save-project').onclick=()=>{
+    const p={
+      id:APP.project?.id||uid(),
+      name:APP.selectedProduct?.title||'Projekt',
+      product:APP.selectedProduct?.title||'',
+      productId:APP.selectedProduct?.id||'',
+      variantCount:APP.variants.length,
+      savedAt:new Date().toISOString(),
+      variants:APP.variants,
+    };
+    APP.project=p; saveProjectLS(p);
+    showToast('Projekt uložen');
+  };
+
+  // editor modal
+  $('btn-close-editor').onclick=closeEditor;
+  $('editor-modal').addEventListener('click',e=>{ if(e.target===$('editor-modal'))closeEditor(); });
+
+  // projects modal
+  $('btn-projects').onclick=openProjects;
+  $('btn-close-projects').onclick=()=>$('projects-modal').classList.add('hidden');
+  $('projects-modal').addEventListener('click',e=>{ if(e.target===$('projects-modal'))$('projects-modal').classList.add('hidden'); });
+
+  $('projects-list').addEventListener('click',async e=>{
+    const t=e.target;
+    if(t.dataset.loadP) {
+      const proj=loadProjects().find(p=>p.id===t.dataset.loadP); if(!proj)return;
+      APP.project=proj; APP.variants=proj.variants||[];
+      APP.selectedProduct=APP.products.find(p=>p.id===proj.productId)||null;
+      for(const v of APP.variants) if(!Object.keys(v.previews||{}).length) await genPreviews(v,APP.products.find(p=>p.id===v.product?.id)||null);
+      showStage('workspace'); renderVariantGrid();
+      $('projects-modal').classList.add('hidden'); showToast('Projekt načten');
+    }
+    if(t.dataset.expP) { const p=loadProjects().find(x=>x.id===t.dataset.expP); if(p)exportProjJSON(p); }
+    if(t.dataset.delP) { deleteProjectLS(t.dataset.delP); renderProjectsList(); showToast('Smazáno'); }
+  });
+
+  // import JSON
+  $('btn-import-json').onclick=()=>$('inp-import-file').click();
+  $('inp-import-file').addEventListener('change',e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const r=new FileReader(); r.onload=ev=>{
+      try{ const p=JSON.parse(ev.target.result); if(!p.id)p.id=uid(); p.savedAt=new Date().toISOString(); saveProjectLS(p); renderProjectsList(); showToast('Importováno'); }
+      catch{ showToast('Neplatný JSON','error'); }
+    }; r.readAsText(f); e.target.value='';
+  });
+
+  // bundles
+  $('btn-new-bundle').onclick=()=>{
+    const name=prompt('Název bundlu:'); if(!name)return;
+    APP.bundles.push({id:uid(),name,productIds:[]}); renderBundleList(); showToast('Bundle přidán');
+  };
+  $('bundle-list').addEventListener('click',e=>{
+    if(e.target.dataset.delBundle){ APP.bundles=APP.bundles.filter(b=>b.id!==e.target.dataset.delBundle); renderBundleList(); }
+  });
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+function init() {
+  bindAll();
+  showStage('select');
+  renderBundleList();
+  $('conn-bar').classList.add('open');
+}
+
+document.fonts.ready.then(init);
+  </script>
+</body>
+</html>
