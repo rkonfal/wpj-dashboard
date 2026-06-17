@@ -579,6 +579,7 @@ const BADGE_OPTIONS = ['','NOVINKA','BESTSELLER','TOP PRODUKT','VÝPRODEJ',''];
 const PROJECTS_KEY  = 'tiande_banner_projects_v1';
 const FEED_URL_KEY  = 'tiande_feed_url_v1';
 const DEFAULT_FEED  = 'https://www.kralovstvi-tiande.cz/feed/23/db0fa65b3fb4fa6ad3e44be839cc31b9a9b34b7b';
+const FEED_PROXY    = 'https://tiande-proxy.rkonfal-rk.workers.dev/feed';
 
 // ─────────────────────────────────────────────
 // STATE
@@ -1115,15 +1116,24 @@ function parseJSONFeed(json) {
 }
 
 async function fetchWithCorsFallback(url) {
-  const TIMEOUT = 25000;
+  const T = 25000;
+  const isDefaultFeed = url === DEFAULT_FEED || url.includes('kralovstvi-tiande.cz/feed');
 
-  // 1. Direct fetch
+  // 1. Own Worker proxy (always available, correct CORS, fastest for tiande feed)
+  if (isDefaultFeed) {
+    try {
+      const r = await fetch(FEED_PROXY, { signal: AbortSignal.timeout(T) });
+      if (r.ok) { console.info('[feed] loaded via tiande-proxy worker'); return { response: r }; }
+    } catch(e) { console.warn('[feed] worker proxy failed:', e.message); }
+  }
+
+  // 2. Direct fetch (works if server sends CORS headers)
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT) });
-    if (r.ok) return { response: r };
-  } catch(_) { /* CORS/network – try proxies */ }
+    const r = await fetch(url, { signal: AbortSignal.timeout(T) });
+    if (r.ok) { console.info('[feed] loaded directly'); return { response: r }; }
+  } catch(_) { /* CORS/network */ }
 
-  // 2. Chain of public CORS proxies
+  // 3. Public CORS proxies as last resort
   const proxies = [
     { label: 'corsproxy.io',
       getUrl: u => 'https://corsproxy.io/?' + encodeURIComponent(u),
@@ -1131,23 +1141,19 @@ async function fetchWithCorsFallback(url) {
     { label: 'allorigins.win',
       getUrl: u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
       extract: async r => { const j = await r.json(); return { text: j.contents||'' }; } },
-    { label: 'codetabs.com',
-      getUrl: u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
-      extract: async r => ({ text: await r.text() }) },
   ];
-
   for (const p of proxies) {
     try {
-      const r = await fetch(p.getUrl(url), { signal: AbortSignal.timeout(TIMEOUT) });
+      const r = await fetch(p.getUrl(url), { signal: AbortSignal.timeout(T) });
       if (r.ok) {
-        const result = await p.extract(r);
+        const res = await p.extract(r);
         console.info(`[feed] loaded via ${p.label}`);
-        return result;
+        return res;
       }
-    } catch(e) { console.warn(`[feed] proxy ${p.label} failed:`, e.message); }
+    } catch(e) { console.warn(`[feed] ${p.label} failed:`, e.message); }
   }
 
-  throw new Error('Nelze načíst feed ze žádného zdroje. Zkontrolujte URL a připojení k internetu.');
+  throw new Error('Nelze načíst feed. Zkontrolujte, zda je Worker proxy nasazený (viz README).');
 }
 
 async function loadFeedProducts() {
