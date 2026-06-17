@@ -4,794 +4,502 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Generátor bannerů – Království tianDe</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: #0b1020;
-  color: #e2e8f0;
-  min-height: 100vh;
-  overflow: hidden;
+:root {
+  --bg:       #0b1020;
+  --s1:       #111827;
+  --s2:       #131929;
+  --s3:       #1a2235;
+  --b:        rgba(255,255,255,0.07);
+  --text:     #e2e8f0;
+  --muted:    rgba(255,255,255,0.42);
+  --gold:     #d4af37;
+  --gold-h:   #e8c84a;
+  --gold-dim: rgba(212,175,55,0.11);
+  --red:      #f06b6b;
+  --green:    #43d17c;
+  --blue:     #6ea8ff;
+  --r:        7px;
+  --r2:       12px;
+  --topbar:   52px;
+  --feed:     49px;
+  --sidebar:  284px;
 }
 
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
 .hidden { display: none !important; }
 
-/* ── Topbar ─────────────────────────────────────────────────────────── */
+/* ── Topbar ───────────────────────────────────────── */
 .topbar {
-  height: 52px;
-  background: #131929;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  position: relative;
-  z-index: 20;
+  height: var(--topbar);
+  background: linear-gradient(90deg, #0d1630 0%, #131929 100%);
+  border-bottom: 1px solid var(--b);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; z-index: 20; position: relative;
 }
-
-.logo-text { font-size: 16px; color: #d4af37; }
-.logo-text strong { font-weight: 700; }
-.topbar-sep { color: rgba(255,255,255,0.2); margin: 0 12px; }
-.topbar-title { font-size: 14px; color: rgba(255,255,255,0.55); }
-.topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; }
-
-/* ── Connection bar ─────────────────────────────────────────────────── */
-.conn-bar {
-  background: #111827;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  overflow: hidden;
-  transition: max-height 0.3s ease;
-  max-height: 0;
-  position: relative;
-  z-index: 15;
+.topbar-brand { display: flex; align-items: center; gap: 10px; }
+.brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px rgba(212,175,55,.55); flex-shrink: 0; }
+.brand-name { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.brand-name em { font-style: normal; color: var(--gold); }
+.brand-tag {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 20px;
+  background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(212,175,55,.22);
 }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
 
-.conn-bar.open { max-height: 72px; }
-
-.conn-bar-inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 20px;
+/* ── Feed bar ─────────────────────────────────────── */
+.feed-bar {
+  height: var(--feed);
+  background: var(--s1); border-bottom: 1px solid var(--b);
+  display: flex; align-items: center; gap: 10px; padding: 0 16px;
 }
+.feed-bar-label { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.feed-bar input { flex: 1; min-width: 0; }
+#feed-status { font-size: 12px; color: var(--muted); white-space: nowrap; min-width: 90px; transition: color .3s; }
+#feed-status.ok  { color: var(--green); }
+#feed-status.err { color: var(--red); }
 
-.conn-bar-inner label {
-  font-size: 12px;
-  color: rgba(255,255,255,0.5);
-  white-space: nowrap;
-}
-
-#feed-status {
-  font-size: 12px;
-  color: rgba(255,255,255,0.5);
-  white-space: nowrap;
-}
-
-/* ── App layout ─────────────────────────────────────────────────────── */
+/* ── Layout ───────────────────────────────────────── */
 .app-layout {
   display: flex;
-  height: calc(100vh - 52px);
+  height: calc(100vh - var(--topbar) - var(--feed));
   overflow: hidden;
-  transition: height 0.3s ease;
 }
 
-/* ── Sidebar ────────────────────────────────────────────────────────── */
+/* ── Sidebar ──────────────────────────────────────── */
 .sidebar {
-  width: 280px;
-  background: #111827;
-  border-right: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  flex-shrink: 0;
+  width: var(--sidebar); background: var(--s1);
+  border-right: 1px solid var(--b);
+  display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;
 }
-
-.sidebar-search { padding: 12px; }
-
-.sidebar-products {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 8px 8px;
+.sidebar-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px 8px; border-bottom: 1px solid var(--b);
 }
-
+.sidebar-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+.sidebar-badge {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  background: var(--s3); padding: 2px 8px; border-radius: 20px;
+}
+.sidebar-search { padding: 8px 10px 4px; }
+.search-wrap { position: relative; }
+.search-wrap input { padding-left: 28px; }
+.search-ico { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--muted); pointer-events: none; }
+.sidebar-products { flex: 1; overflow-y: auto; padding: 4px 7px 7px; }
 .sidebar-empty {
-  padding: 24px;
-  text-align: center;
-  color: rgba(255,255,255,0.35);
-  font-size: 13px;
-  line-height: 1.5;
+  padding: 28px 14px; text-align: center;
+  color: var(--muted); font-size: 13px; line-height: 1.7;
 }
+.sidebar-empty-ico { font-size: 30px; opacity: .35; color: var(--gold); margin-bottom: 8px; }
 
+/* ── Product item ─────────────────────────────────── */
 .product-item {
-  background: #1a2235;
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 6px;
-  cursor: pointer;
-  transition: border-color 0.15s;
+  display: flex; align-items: center; gap: 9px;
+  background: var(--s2); border: 1px solid var(--b); border-radius: var(--r);
+  padding: 7px 9px; margin-bottom: 4px; cursor: pointer;
+  transition: border-color .15s, background .15s;
 }
-
-.product-item:hover { border-color: rgba(212,175,55,0.4); }
-.product-item.selected { border-color: #d4af37; background: rgba(212,175,55,0.08); }
-
-.product-item-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: #e2e8f0;
-  line-height: 1.3;
-  margin-bottom: 4px;
+.product-item:hover { border-color: rgba(212,175,55,.35); }
+.product-item.selected { border-color: var(--gold); background: var(--gold-dim); }
+.p-thumb {
+  width: 38px; height: 38px; border-radius: 5px; object-fit: contain;
+  background: var(--s3); flex-shrink: 0; display: block;
 }
-
-.product-item-meta {
-  font-size: 11px;
-  color: rgba(255,255,255,0.4);
-  display: flex;
-  justify-content: space-between;
+.p-thumb-ph {
+  width: 38px; height: 38px; border-radius: 5px; background: var(--s3);
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: var(--muted);
 }
-
-.product-item-price {
-  font-size: 12px;
-  color: #d4af37;
-  font-weight: 600;
+.p-text { flex: 1; min-width: 0; }
+.p-title {
+  font-size: 12px; font-weight: 500; line-height: 1.35;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  margin-bottom: 3px;
 }
+.p-meta { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+.p-code { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-price { font-size: 12px; color: var(--gold); font-weight: 700; white-space: nowrap; }
 
-/* ── Sidebar bundles ────────────────────────────────────────────────── */
-.sidebar-bundles {
-  border-top: 1px solid rgba(255,255,255,0.06);
-  padding: 12px;
-}
-
-.sidebar-bundles-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 12px;
-  color: rgba(255,255,255,0.5);
-}
-
+/* ── Sidebar bundles ──────────────────────────────── */
+.sidebar-bundles { border-top: 1px solid var(--b); padding: 9px 11px; }
+.sb-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; font-weight: 600; color: var(--muted); }
 .bundle-item {
-  background: #1a2235;
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 6px;
-  padding: 8px 10px;
-  margin-bottom: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #e2e8f0;
+  background: var(--s3); border: 1px solid var(--b); border-radius: 6px;
+  padding: 6px 9px; margin-bottom: 4px; cursor: pointer; font-size: 12px;
+  display: flex; justify-content: space-between; align-items: center;
 }
+.bundle-item:hover { border-color: rgba(212,175,55,.3); }
 
-.bundle-item:hover { border-color: rgba(212,175,55,0.3); }
-
-/* ── Inputs ─────────────────────────────────────────────────────────── */
-input[type=text],
-input[type=url],
-textarea,
-select {
-  background: #1a2235;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px;
-  color: #e2e8f0;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  padding: 8px 10px;
-  width: 100%;
-  outline: none;
-  transition: border-color 0.15s;
+/* ── Inputs ───────────────────────────────────────── */
+input[type=text], input[type=url], textarea, select {
+  background: var(--s3); border: 1px solid rgba(255,255,255,.09);
+  border-radius: 6px; color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 13px;
+  padding: 7px 10px; width: 100%; outline: none; transition: border-color .15s;
 }
+input[type=text]:focus, input[type=url]:focus, textarea:focus, select:focus { border-color: rgba(212,175,55,.45); }
+input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; }
+textarea { resize: vertical; min-height: 54px; }
 
-input[type=text]:focus,
-input[type=url]:focus,
-textarea:focus,
-select:focus {
-  border-color: rgba(212,175,55,0.5);
-}
-
-input[type=range] { width: 100%; accent-color: #d4af37; }
-
-textarea {
-  resize: vertical;
-  min-height: 60px;
-}
-
-/* ── Buttons ────────────────────────────────────────────────────────── */
+/* ── Buttons ──────────────────────────────────────── */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 6px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  transition: all 0.15s;
-  white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 6px;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none; transition: all .15s; white-space: nowrap; line-height: 1;
 }
-
-.btn-primary { background: #d4af37; color: #1a1a2e; }
-.btn-primary:hover { background: #e8c84a; }
-
-.btn-outline {
-  background: transparent;
-  color: rgba(255,255,255,0.7);
-  border: 1px solid rgba(255,255,255,0.15);
-}
-
-.btn-outline:hover { border-color: rgba(255,255,255,0.3); color: #fff; }
-
+.btn-primary { background: var(--gold); color: #1a1a2e; }
+.btn-primary:hover { background: var(--gold-h); }
+.btn-primary:active { transform: scale(.97); }
+.btn-outline { background: transparent; color: rgba(255,255,255,.65); border: 1px solid rgba(255,255,255,.13); }
+.btn-outline:hover { border-color: rgba(255,255,255,.28); color: #fff; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
-
-.btn-lg {
-  width: 100%;
-  justify-content: center;
-  padding: 12px;
-  font-size: 15px;
-  margin-top: 16px;
-}
-
-.btn-ghost {
-  background: transparent;
-  border: none;
-  color: rgba(255,255,255,0.5);
-  font-size: 12px;
-  cursor: pointer;
-  padding: 4px 8px;
-}
-
+.btn-lg { width: 100%; justify-content: center; padding: 12px; font-size: 15px; margin-top: 14px; border-radius: var(--r); }
+.btn-ghost { background: transparent; border: none; color: var(--muted); font-size: 12px; cursor: pointer; padding: 4px 7px; transition: color .15s; }
 .btn-ghost:hover { color: #fff; }
-
-.btn-close {
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.5);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px;
-  line-height: 1;
-}
-
+.btn-close { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 4px; line-height: 1; transition: color .15s; }
 .btn-close:hover { color: #fff; }
+.btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
 
-/* ── Main workspace ─────────────────────────────────────────────────── */
-.main-workspace {
-  flex: 1;
-  overflow-y: auto;
-  background: #0b1020;
-}
-
+/* ── Main workspace ───────────────────────────────── */
+.main-workspace { flex: 1; overflow-y: auto; background: var(--bg); }
 .stage { min-height: 100%; }
 
-/* ── Stage: select ──────────────────────────────────────────────────── */
+/* ── Stage: select ────────────────────────────────── */
 .stage-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(100vh - 120px);
-  gap: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: calc(100vh - 110px); gap: 10px; padding: 40px; text-align: center;
 }
+.stage-empty-ico { font-size: 44px; opacity: .28; color: var(--gold); }
+.stage-empty h2 { font-size: 20px; font-weight: 600; color: rgba(255,255,255,.5); }
+.stage-empty p { font-size: 14px; color: rgba(255,255,255,.28); }
 
-.stage-empty-icon { font-size: 48px; color: rgba(212,175,55,0.3); }
-.stage-empty h2 { font-size: 20px; color: rgba(255,255,255,0.6); }
-.stage-empty p { font-size: 14px; color: rgba(255,255,255,0.35); }
-
-/* ── Stage: configure ───────────────────────────────────────────────── */
-.configure-panel {
-  max-width: 680px;
-  margin: 40px auto;
-  padding: 0 24px;
+/* ── Stage: configure ─────────────────────────────── */
+.configure-panel { max-width: 680px; margin: 36px auto; padding: 0 24px; }
+.cfg-preview {
+  background: var(--s2); border: 1px solid var(--b);
+  border-radius: var(--r2); padding: 20px; margin-bottom: 18px;
+  display: flex; gap: 16px; align-items: flex-start;
 }
-
-.configure-product-preview {
-  background: #131929;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.cfg-product-img {
-  width: 80px;
-  height: 80px;
-  object-fit: contain;
-  border-radius: 6px;
-  background: #1a2235;
-  flex-shrink: 0;
-}
-
-.cfg-product-info h3 { font-size: 16px; margin-bottom: 4px; }
-.cfg-product-info .code { font-size: 12px; color: rgba(255,255,255,0.4); }
-.cfg-product-info .price { font-size: 18px; font-weight: 700; color: #d4af37; margin-top: 6px; }
-
-.configure-options {
-  background: #131929;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  padding: 20px;
-}
-
+.cfg-img { width: 86px; height: 86px; object-fit: contain; border-radius: 8px; background: var(--s3); flex-shrink: 0; }
+.cfg-info h3 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.cfg-info .code { font-size: 12px; color: var(--muted); }
+.cfg-info .price { font-size: 20px; font-weight: 800; color: var(--gold); margin-top: 5px; }
+.cfg-options { background: var(--s2); border: 1px solid var(--b); border-radius: var(--r2); padding: 20px; }
 .field-group { margin-bottom: 16px; }
-
-.field-group label {
-  display: block;
-  font-size: 13px;
-  color: rgba(255,255,255,0.6);
-  margin-bottom: 6px;
+.field-group:last-child { margin-bottom: 0; }
+.field-group > label {
+  display: block; font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px;
 }
-
-.template-checks {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+.tpl-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.tpl-check-item {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--s3); border: 1px solid var(--b); border-radius: 7px;
+  padding: 8px 11px; cursor: pointer; font-size: 12px; user-select: none; transition: border-color .15s;
 }
+.tpl-check-item:hover { border-color: rgba(212,175,55,.3); }
+.tpl-check-item input { accent-color: var(--gold); width: 14px; height: 14px; flex-shrink: 0; }
 
-.template-check-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #1a2235;
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  color: #e2e8f0;
-  user-select: none;
+/* ── Stage: workspace ─────────────────────────────── */
+.ws-topbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px; border-bottom: 1px solid var(--b);
+  background: rgba(13,21,38,.9); backdrop-filter: blur(8px);
+  position: sticky; top: 0; z-index: 10;
 }
+.ws-name { flex: 1; font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-actions { display: flex; gap: 7px; }
 
-.template-check-item input {
-  accent-color: #d4af37;
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
+/* ── Filter bar ───────────────────────────────────── */
+.ws-filter-bar {
+  display: flex; align-items: center; gap: 5px;
+  padding: 8px 18px; border-bottom: 1px solid var(--b); background: var(--bg);
 }
-
-/* ── Stage: workspace ───────────────────────────────────────────────── */
-.workspace-topbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 24px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  background: #0d1526;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+.ftab {
+  padding: 4px 13px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1px solid var(--b);
+  background: transparent; color: var(--muted);
+  font-family: 'DM Sans', sans-serif; transition: all .15s;
 }
+.ftab:hover { border-color: rgba(255,255,255,.2); color: var(--text); }
+.ftab.active { background: var(--s3); border-color: rgba(255,255,255,.18); color: var(--text); }
+.ftab .tc {
+  display: inline-block; background: var(--s3); color: var(--muted);
+  font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 20px; margin-left: 4px;
+}
+.ftab.active .tc { background: var(--gold-dim); color: var(--gold); }
+.filter-spacer { flex: 1; }
+.fmt-toggle { display: flex; gap: 3px; background: var(--s3); padding: 3px; border-radius: 7px; }
+.fmt-btn {
+  padding: 3px 9px; border-radius: 5px; font-size: 11px; font-weight: 600;
+  cursor: pointer; border: none; background: transparent; color: var(--muted);
+  font-family: 'DM Sans', sans-serif; transition: all .15s;
+}
+.fmt-btn:hover { color: var(--text); }
+.fmt-btn.active { background: var(--s1); color: var(--text); }
 
-.workspace-product-name { flex: 1; font-size: 15px; font-weight: 600; }
-.workspace-actions { display: flex; gap: 10px; }
-
-/* ── Variant grid ───────────────────────────────────────────────────── */
+/* ── Variant grid ─────────────────────────────────── */
 .variant-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 20px;
-  padding: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(370px, 1fr));
+  gap: 16px; padding: 18px;
 }
-
+@keyframes cardIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: none; } }
 .variant-card {
-  background: #131929;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  overflow: hidden;
+  background: var(--s2); border: 1px solid var(--b); border-radius: var(--r2);
+  overflow: hidden; animation: cardIn .22s ease both; transition: border-color .2s;
 }
-
-.variant-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+.variant-card:hover { border-color: rgba(255,255,255,.12); }
+.variant-card.is-approved { border-color: rgba(67,209,124,.24); }
+.variant-card.is-rejected { border-color: rgba(240,107,107,.18); opacity: .6; }
+.vc-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 13px; border-bottom: 1px solid var(--b);
 }
-
-.variant-card-meta { display: flex; align-items: center; gap: 10px; }
-.variant-template-name { font-size: 13px; font-weight: 600; }
-
-.variant-scheme-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.2);
-  flex-shrink: 0;
+.vc-meta { display: flex; align-items: center; gap: 8px; }
+.vc-tpl { font-size: 12px; font-weight: 600; }
+.scheme-dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.2); flex-shrink: 0; }
+.status-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: .06em; }
+.status-pending  { background: rgba(110,168,255,.12); color: var(--blue); }
+.status-approved { background: rgba(67,209,124,.12);  color: var(--green); }
+.status-rejected { background: rgba(240,107,107,.12); color: var(--red); }
+.vc-headline { font-size: 12px; color: var(--muted); padding: 5px 13px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-previews { display: grid; gap: 3px; padding: 9px; background: var(--bg); }
+.vc-previews.g4 { grid-template-columns: 1fr 1fr; }
+.vc-previews.g1 { grid-template-columns: 1fr; }
+.vp-item { position: relative; cursor: pointer; }
+.vp-img { width: 100%; border-radius: 4px; display: block; background: var(--s3); }
+.vp-label {
+  position: absolute; bottom: 4px; left: 4px;
+  background: rgba(0,0,0,.65); color: #fff;
+  font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px;
 }
+.vc-actions { display: flex; gap: 4px; padding: 8px 10px; flex-wrap: wrap; border-top: 1px solid var(--b); }
 
-.status-badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+/* ── Loading overlay ──────────────────────────────── */
+.gen-overlay {
+  position: fixed; inset: 0;
+  background: rgba(11,16,32,.88); backdrop-filter: blur(8px);
+  z-index: 50; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
 }
-
-.status-pending  { background: rgba(110,168,255,0.15); color: #6ea8ff; }
-.status-approved { background: rgba(67,209,124,0.15); color: #43d17c; }
-.status-rejected { background: rgba(240,107,107,0.15); color: #f06b6b; }
-
-/* ── Variant previews ───────────────────────────────────────────────── */
-.variant-previews {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding: 12px;
-  background: #0b1020;
+.gen-spinner {
+  width: 44px; height: 44px;
+  border: 3px solid rgba(212,175,55,.18); border-top-color: var(--gold);
+  border-radius: 50%; animation: spin .75s linear infinite;
 }
+@keyframes spin { to { transform: rotate(360deg); } }
+.gen-label { font-size: 16px; font-weight: 700; color: var(--text); }
+.gen-sub   { font-size: 13px; color: var(--muted); }
+.gen-prog-wrap { width: 220px; height: 3px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+.gen-prog { height: 100%; background: var(--gold); border-radius: 2px; transition: width .3s ease; width: 0%; }
 
-.variant-preview-item { position: relative; cursor: pointer; }
-
-.variant-preview-img {
-  width: 100%;
-  border-radius: 4px;
-  display: block;
-  background: #1a2235;
-}
-
-.variant-preview-label {
-  position: absolute;
-  bottom: 4px;
-  left: 4px;
-  background: rgba(0,0,0,0.6);
-  color: #fff;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 3px;
-}
-
-.variant-card-actions {
-  display: flex;
-  gap: 6px;
-  padding: 10px 12px;
-  flex-wrap: wrap;
-}
-
-.variant-card-actions .btn { font-size: 12px; padding: 5px 10px; }
-
-.variant-headline {
-  font-size: 13px;
-  color: rgba(255,255,255,0.7);
-  padding: 6px 12px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Editor modal ───────────────────────────────────────────────────── */
+/* ── Editor modal ─────────────────────────────────── */
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.75);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.75); z-index: 100;
+  display: flex; align-items: center; justify-content: center;
 }
-
 .modal-editor {
-  display: flex;
-  width: 95vw;
-  max-width: 1300px;
-  height: 90vh;
-  background: #111827;
-  border-radius: 14px;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.08);
+  display: flex; width: 95vw; max-width: 1320px; height: 90vh;
+  background: var(--s1); border-radius: 14px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 32px 80px rgba(0,0,0,.6);
 }
-
-.modal-editor-left {
-  flex: 1;
-  background: #0b1020;
-  padding: 20px;
-  overflow-y: auto;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  align-content: start;
+.modal-ed-left {
+  flex: 1; background: var(--bg); padding: 16px; overflow-y: auto;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start;
 }
-
-.modal-editor-right {
-  width: 360px;
-  display: flex;
-  flex-direction: column;
-  border-left: 1px solid rgba(255,255,255,0.08);
+.modal-ed-right { width: 355px; display: flex; flex-direction: column; border-left: 1px solid var(--b); }
+.modal-ed-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 17px; border-bottom: 1px solid var(--b);
 }
-
-.modal-editor-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+.modal-ed-hdr h3 { font-size: 14px; font-weight: 700; }
+.editor-fields { flex: 1; overflow-y: auto; padding: 13px 17px; display: flex; flex-direction: column; gap: 12px; }
+.ep-img { width: 100%; border-radius: 6px; border: 1px solid var(--b); display: block; background: var(--s3); }
+.ep-label { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: center; }
+.editor-field label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+.tpl-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.tpl-option {
+  background: var(--s3); border: 2px solid var(--b); border-radius: 7px;
+  padding: 7px 9px; cursor: pointer; font-size: 12px; text-align: center;
+  transition: all .15s; color: var(--text); font-family: 'DM Sans', sans-serif;
 }
-
-.modal-editor-header h3 { font-size: 16px; }
-
-.editor-fields {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+.tpl-option:hover { border-color: rgba(212,175,55,.3); }
+.tpl-option.selected { border-color: var(--gold); background: var(--gold-dim); color: var(--gold); }
+.tpl-option-ico { font-size: 17px; display: block; margin-bottom: 3px; }
+.scheme-sel { display: flex; gap: 7px; flex-wrap: wrap; }
+.scheme-opt {
+  width: 33px; height: 33px; border-radius: 50%;
+  border: 2.5px solid transparent; cursor: pointer; transition: all .15s;
 }
-
-.editor-preview-item { }
-
-.editor-preview-img {
-  width: 100%;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.06);
-  display: block;
-  background: #1a2235;
+.scheme-opt.selected { border-color: #fff; transform: scale(1.18); box-shadow: 0 0 0 2px rgba(255,255,255,.15); }
+.scheme-opt:hover { transform: scale(1.1); }
+.ben-list { display: flex; flex-direction: column; gap: 5px; }
+.ben-item { display: flex; align-items: center; gap: 5px; }
+.ben-item input { flex: 1; }
+.ben-item .btn-ghost { padding: 3px; }
+.asset-btns { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 7px; }
+.asset-btn {
+  padding: 4px 11px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.1); background: transparent;
+  color: rgba(255,255,255,.55); font-family: 'DM Sans', sans-serif; transition: all .15s;
 }
-
-.editor-preview-label {
-  font-size: 11px;
-  color: rgba(255,255,255,0.4);
-  margin-top: 4px;
-  text-align: center;
+.asset-btn.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+.ed-footer {
+  display: flex; gap: 7px; padding: 11px 17px; border-top: 1px solid var(--b);
 }
+.ed-footer .btn { flex: 1; justify-content: center; }
 
-.editor-field { }
-
-.editor-field label {
-  display: block;
-  font-size: 12px;
-  color: rgba(255,255,255,0.5);
-  margin-bottom: 5px;
-  font-weight: 500;
+/* ── Standard modal ───────────────────────────────── */
+.modal-std {
+  background: var(--s1); border-radius: 14px; border: 1px solid var(--b);
+  width: 90vw; max-width: 600px; max-height: 85vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0,0,0,.5);
 }
-
-/* ── Template selector ──────────────────────────────────────────────── */
-.template-selector {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+.modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 13px 17px; border-bottom: 1px solid var(--b); }
+.modal-hdr h3 { font-size: 14px; font-weight: 700; }
+.modal-body { flex: 1; overflow-y: auto; padding: 13px 17px; }
+.modal-foot { padding: 11px 17px; border-top: 1px solid var(--b); display: flex; gap: 7px; }
+.proj-item {
+  background: var(--s3); border: 1px solid var(--b); border-radius: 8px;
+  padding: 11px 13px; margin-bottom: 6px;
+  display: flex; align-items: center; gap: 11px;
 }
+.proj-info { flex: 1; }
+.proj-name { font-size: 14px; font-weight: 600; }
+.proj-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.proj-actions { display: flex; gap: 5px; }
 
-.template-option {
-  background: #1a2235;
-  border: 2px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
-  padding: 8px 10px;
-  cursor: pointer;
-  font-size: 12px;
-  text-align: center;
-  transition: all 0.15s;
-  color: #e2e8f0;
-  font-family: 'DM Sans', sans-serif;
-}
-
-.template-option:hover { border-color: rgba(212,175,55,0.3); }
-.template-option.selected { border-color: #d4af37; background: rgba(212,175,55,0.08); color: #d4af37; }
-.template-option-icon { font-size: 20px; display: block; margin-bottom: 4px; }
-
-/* ── Scheme selector ────────────────────────────────────────────────── */
-.scheme-selector { display: flex; gap: 8px; flex-wrap: wrap; }
-
-.scheme-option {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 3px solid transparent;
-  cursor: pointer;
-  transition: all 0.15s;
-  position: relative;
-}
-
-.scheme-option.selected { border-color: #fff; transform: scale(1.15); }
-.scheme-option:hover { transform: scale(1.1); }
-
-/* ── Benefits editor ────────────────────────────────────────────────── */
-.benefits-list { display: flex; flex-direction: column; gap: 6px; }
-
-.benefit-item { display: flex; align-items: center; gap: 6px; }
-.benefit-item input { flex: 1; }
-.benefit-item .btn-ghost { padding: 4px; }
-
-/* ── Asset manager ──────────────────────────────────────────────────── */
-.asset-mode-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
-
-.asset-mode-btn {
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: transparent;
-  color: rgba(255,255,255,0.6);
-  font-family: 'DM Sans', sans-serif;
-  transition: all 0.15s;
-}
-
-.asset-mode-btn.active {
-  background: rgba(212,175,55,0.15);
-  border-color: #d4af37;
-  color: #d4af37;
-}
-
-/* ── Editor footer ──────────────────────────────────────────────────── */
-.editor-footer {
-  display: flex;
-  gap: 8px;
-  padding: 14px 20px;
-  border-top: 1px solid rgba(255,255,255,0.08);
-}
-
-.editor-footer .btn { flex: 1; justify-content: center; }
-
-/* ── Standard modal ─────────────────────────────────────────────────── */
-.modal-standard {
-  background: #111827;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.08);
-  width: 90vw;
-  max-width: 600px;
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-
-.modal-header h3 { font-size: 16px; }
-.modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
-
-.modal-footer {
-  padding: 14px 20px;
-  border-top: 1px solid rgba(255,255,255,0.08);
-  display: flex;
-  gap: 8px;
-}
-
-/* ── Project items ──────────────────────────────────────────────────── */
-.project-item {
-  background: #1a2235;
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.project-item-info { flex: 1; }
-.project-item-name { font-size: 14px; font-weight: 500; }
-.project-item-meta { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
-.project-item-actions { display: flex; gap: 6px; }
-
-/* ── Separator ──────────────────────────────────────────────────────── */
-.sep { height: 1px; background: rgba(255,255,255,0.07); margin: 8px 0; }
-
-/* ── Scrollbar ──────────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+/* ── Misc ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
-
-/* ── Toast ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.11); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.2); }
 .toast {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  background: #1a2235;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  padding: 12px 18px;
-  font-size: 13px;
-  z-index: 999;
-  transform: translateY(20px);
-  opacity: 0;
-  transition: all 0.25s;
-  pointer-events: none;
+  position: fixed; bottom: 20px; right: 20px;
+  background: var(--s2); border: 1px solid var(--b); border-radius: 9px;
+  padding: 10px 17px; font-size: 13px; font-weight: 500; z-index: 999;
+  transform: translateY(14px); opacity: 0; transition: all .2s; pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
 }
-
 .toast.show { transform: translateY(0); opacity: 1; }
-.toast.success { border-color: rgba(67,209,124,0.3); color: #43d17c; }
-.toast.error   { border-color: rgba(240,107,107,0.3); color: #f06b6b; }
+.toast.success { border-color: rgba(67,209,124,.28); color: var(--green); }
+.toast.error   { border-color: rgba(240,107,107,.28); color: var(--red); }
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- topbar -->
-    <div class="topbar" id="topbar">
-      <div class="topbar-left">
-        <span class="logo-text">Království <strong>tianDe</strong></span>
-        <span class="topbar-sep">|</span>
-        <span class="topbar-title" id="topbar-title">Generátor bannerů</span>
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-brand">
+        <div class="brand-dot"></div>
+        <div class="brand-name">Království <em>tianDe</em></div>
+        <div class="brand-tag">Generátor bannerů</div>
       </div>
-      <div class="topbar-right" id="topbar-actions">
-        <button class="btn btn-outline" id="btn-projects">Projekty</button>
-        <button class="btn btn-outline" id="btn-conn-toggle">Připojení</button>
-      </div>
-    </div>
-
-    <!-- connection bar (collapsible) -->
-    <div class="conn-bar" id="conn-bar">
-      <div class="conn-bar-inner">
-        <label>Worker URL</label>
-        <input type="text" id="inp-worker" value="https://tiande-proxy.rkonfal-rk.workers.dev" />
-        <label>Token</label>
-        <input type="text" id="inp-token" value="bF5mJwCfTmTyvdda" />
-        <button class="btn btn-primary" id="btn-load-feed">Načíst feed</button>
-        <span id="feed-status"></span>
+      <div class="topbar-right">
+        <button class="btn btn-outline btn-sm" id="btn-projects">📁 Projekty</button>
       </div>
     </div>
 
-    <!-- main layout -->
-    <div class="app-layout" id="app-layout">
-      <!-- sidebar -->
-      <aside class="sidebar" id="sidebar">
+    <!-- Feed bar -->
+    <div class="feed-bar">
+      <span class="feed-bar-label">Feed</span>
+      <input type="text" id="inp-feed-url"
+        value="https://www.kralovstvi-tiande.cz/feed/23/db0fa65b3fb4fa6ad3e44be839cc31b9a9b34b7b"
+        placeholder="https://…/feed (Heureka XML, Google XML nebo JSON)" />
+      <button class="btn btn-primary" id="btn-load-feed">Načíst feed</button>
+      <span id="feed-status"></span>
+    </div>
+
+    <!-- App layout -->
+    <div class="app-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="sidebar-hdr">
+          <span class="sidebar-title">Produkty</span>
+          <span class="sidebar-badge" id="sidebar-count">0</span>
+        </div>
         <div class="sidebar-search">
-          <input type="text" id="inp-search" placeholder="Hledat produkt…" />
+          <div class="search-wrap">
+            <span class="search-ico">⌕</span>
+            <input type="text" id="inp-search" placeholder="Hledat produkt nebo kód…" />
+          </div>
         </div>
         <div class="sidebar-products" id="sidebar-products">
-          <div class="sidebar-empty">Načtěte feed pro zobrazení produktů</div>
+          <div class="sidebar-empty">
+            <div class="sidebar-empty-ico">◈</div>
+            <p>Klikněte na <strong>Načíst feed</strong><br>pro zobrazení produktů</p>
+          </div>
         </div>
         <div class="sidebar-bundles">
-          <div class="sidebar-bundles-header">
+          <div class="sb-hdr">
             <span>Bundles</span>
-            <button class="btn btn-sm" id="btn-new-bundle">+ Nový bundle</button>
+            <button class="btn btn-sm" id="btn-new-bundle">+ Nový</button>
           </div>
           <div id="bundle-list"></div>
         </div>
       </aside>
 
-      <!-- main workspace -->
-      <main class="main-workspace" id="main-workspace">
-        <!-- stage: select -->
+      <!-- Main -->
+      <main class="main-workspace">
+        <!-- Stage: select -->
         <div class="stage" id="stage-select">
           <div class="stage-empty">
-            <div class="stage-empty-icon">◈</div>
+            <div class="stage-empty-ico">◈</div>
             <h2>Vyberte produkt ze sidebaru</h2>
-            <p>Po výběru produktu budete moci generovat bannery ve všech formátech.</p>
+            <p>Klikněte na produkt v levém panelu a nastavte parametry generátoru</p>
           </div>
         </div>
 
-        <!-- stage: configure -->
+        <!-- Stage: configure -->
         <div class="stage hidden" id="stage-configure">
           <div class="configure-panel">
-            <div class="configure-product-preview" id="cfg-product-preview"></div>
-            <div class="configure-options">
+            <div class="cfg-preview" id="cfg-product-preview"></div>
+            <div class="cfg-options">
               <div class="field-group">
                 <label>Počet variant: <span id="cfg-count-label">7</span></label>
-                <input type="range" id="cfg-count" min="5" max="10" value="7" />
+                <input type="range" id="cfg-count" min="3" max="10" value="7" />
               </div>
               <div class="field-group">
                 <label>Šablony</label>
-                <div class="template-checks" id="template-checks"></div>
+                <div class="tpl-checks" id="template-checks"></div>
               </div>
-              <button class="btn btn-primary btn-lg" id="btn-generate">Generovat bannery</button>
+              <button class="btn btn-primary btn-lg" id="btn-generate">✦ Generovat bannery</button>
             </div>
           </div>
         </div>
 
-        <!-- stage: workspace -->
+        <!-- Stage: workspace -->
         <div class="stage hidden" id="stage-workspace">
-          <div class="workspace-topbar">
-            <button class="btn btn-outline" id="btn-back">← Zpět</button>
-            <span class="workspace-product-name" id="ws-product-name"></span>
-            <div class="workspace-actions">
-              <button class="btn btn-outline" id="btn-export-bulk">Exportovat schválené</button>
-              <button class="btn btn-primary" id="btn-save-project">Uložit projekt</button>
+          <div class="ws-topbar">
+            <button class="btn btn-outline btn-sm" id="btn-back">← Zpět</button>
+            <span class="ws-name" id="ws-product-name"></span>
+            <div class="ws-actions">
+              <button class="btn btn-outline btn-sm" id="btn-export-bulk">↓ ZIP schválených</button>
+              <button class="btn btn-primary btn-sm" id="btn-save-project">💾 Uložit projekt</button>
+            </div>
+          </div>
+          <div class="ws-filter-bar">
+            <button class="ftab active" data-filter="all">Vše <span class="tc" id="tc-all">0</span></button>
+            <button class="ftab" data-filter="pending">Čeká <span class="tc" id="tc-pending">0</span></button>
+            <button class="ftab" data-filter="approved">✓ Schváleno <span class="tc" id="tc-approved">0</span></button>
+            <button class="ftab" data-filter="rejected">✗ Zamítnuto <span class="tc" id="tc-rejected">0</span></button>
+            <div class="filter-spacer"></div>
+            <div class="fmt-toggle">
+              <button class="fmt-btn active" data-fmt="all">Vše</button>
+              <button class="fmt-btn" data-fmt="f169">16:9</button>
+              <button class="fmt-btn" data-fmt="f45">4:5</button>
+              <button class="fmt-btn" data-fmt="f11">1:1</button>
+              <button class="fmt-btn" data-fmt="f916">9:16</button>
             </div>
           </div>
           <div class="variant-grid" id="variant-grid"></div>
@@ -800,13 +508,21 @@ textarea {
     </div>
   </div>
 
+  <!-- Generation overlay -->
+  <div class="gen-overlay hidden" id="gen-overlay">
+    <div class="gen-spinner"></div>
+    <div class="gen-label" id="gen-label">Generuji bannery…</div>
+    <div class="gen-sub"   id="gen-sub">Připravuji varianty</div>
+    <div class="gen-prog-wrap"><div class="gen-prog" id="gen-prog"></div></div>
+  </div>
+
   <!-- Editor Modal -->
   <div class="modal-overlay hidden" id="editor-modal">
     <div class="modal-editor">
-      <div class="modal-editor-left" id="editor-previews"></div>
-      <div class="modal-editor-right">
-        <div class="modal-editor-header">
-          <h3>Upravit variant</h3>
+      <div class="modal-ed-left" id="editor-previews"></div>
+      <div class="modal-ed-right">
+        <div class="modal-ed-hdr">
+          <h3>Upravit variantu</h3>
           <button class="btn-close" id="btn-close-editor">✕</button>
         </div>
         <div class="editor-fields" id="editor-fields"></div>
@@ -816,27 +532,16 @@ textarea {
 
   <!-- Projects Modal -->
   <div class="modal-overlay hidden" id="projects-modal">
-    <div class="modal-standard">
-      <div class="modal-header">
-        <h3>Projekty</h3>
+    <div class="modal-std">
+      <div class="modal-hdr">
+        <h3>Uložené projekty</h3>
         <button class="btn-close" id="btn-close-projects">✕</button>
       </div>
       <div class="modal-body" id="projects-list"></div>
-      <div class="modal-footer">
-        <button class="btn btn-outline" id="btn-import-json">Importovat JSON</button>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="btn-import-json">↑ Importovat JSON</button>
         <input type="file" id="inp-import-file" accept=".json" class="hidden" />
       </div>
-    </div>
-  </div>
-
-  <!-- Export Modal -->
-  <div class="modal-overlay hidden" id="export-modal">
-    <div class="modal-standard">
-      <div class="modal-header">
-        <h3>Export</h3>
-        <button class="btn-close" id="btn-close-export">✕</button>
-      </div>
-      <div class="modal-body" id="export-body"></div>
     </div>
   </div>
 
@@ -872,6 +577,8 @@ const TEMPLATES = [
 const CTA_OPTIONS   = ['Koupit nyní','Zjistit více','Objednat','Vyzkoušet','Přidat do košíku','Zobrazit produkt'];
 const BADGE_OPTIONS = ['','NOVINKA','BESTSELLER','TOP PRODUKT','VÝPRODEJ',''];
 const PROJECTS_KEY  = 'tiande_banner_projects_v1';
+const FEED_URL_KEY  = 'tiande_feed_url_v1';
+const DEFAULT_FEED  = 'https://www.kralovstvi-tiande.cz/feed/23/db0fa65b3fb4fa6ad3e44be839cc31b9a9b34b7b';
 
 // ─────────────────────────────────────────────
 // STATE
@@ -883,12 +590,14 @@ const APP = {
   variants: [],
   editingVariantId: null,
   project: null,
+  activeFilter: 'all',
+  activeFormat: 'all',
 };
 
 // ─────────────────────────────────────────────
-// GENERIC HELPERS
+// HELPERS
 // ─────────────────────────────────────────────
-const $  = id => document.getElementById(id);
+const $ = id => document.getElementById(id);
 
 function uid() { return Math.random().toString(36).slice(2,10); }
 
@@ -913,9 +622,7 @@ function downloadBlob(urlOrBlob, filename) {
   const a = document.createElement('a');
   a.href = typeof urlOrBlob === 'string' ? urlOrBlob : URL.createObjectURL(urlOrBlob);
   a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 function hexToRgba(hex, a) {
@@ -924,6 +631,14 @@ function hexToRgba(hex, a) {
 }
 
 function getScheme(id) { return COLOR_SCHEMES.find(c=>c.id===id) || COLOR_SCHEMES[0]; }
+
+function setProgress(pct, label, sub) {
+  $('gen-prog').style.width = pct + '%';
+  if (label) $('gen-label').textContent = label;
+  if (sub)   $('gen-sub').textContent   = sub;
+}
+function showOverlay(label, sub) { setProgress(0, label, sub); $('gen-overlay').classList.remove('hidden'); }
+function hideOverlay() { $('gen-overlay').classList.add('hidden'); }
 
 // ─────────────────────────────────────────────
 // CANVAS PRIMITIVES
@@ -941,8 +656,7 @@ function roundRect(ctx, x, y, w, h, r) {
 function wrapText(ctx, text, x, y, maxW, lh, align='left') {
   if (!text) return 0;
   const words = String(text).split(' ');
-  const lines = [];
-  let line = '';
+  const lines = []; let line = '';
   for (const w of words) {
     const test = line ? line+' '+w : w;
     if (ctx.measureText(test).width > maxW && line) { lines.push(line); line=w; }
@@ -1025,15 +739,12 @@ function loadImg(url) {
 function tplCleanPackshot(ctx, v, fmt, img) {
   const cs=getScheme(v.colorScheme), W=fmt.width, H=fmt.height;
   drawGradBg(ctx,W,H,cs.bg,cs.bg2);
-
-  // soft accent blob
   ctx.save(); ctx.globalAlpha=0.07; ctx.fillStyle=cs.accent;
   ctx.beginPath(); ctx.ellipse(W*0.78,H*0.5,H*0.55,H*0.55,0,0,Math.PI*2); ctx.fill();
   ctx.restore();
 
   let iX,iY,iW,iH, tX,tY,tMaxW;
   const portrait = fmt.id==='f45'||fmt.id==='f916';
-
   if (fmt.id==='f169') { iX=W*0.46;iY=H*0.06;iW=W*0.50;iH=H*0.88; tX=55;tY=H*0.14;tMaxW=W*0.38; }
   else if (fmt.id==='f11') { iX=W*0.44;iY=H*0.08;iW=W*0.50;iH=H*0.84; tX=44;tY=H*0.14;tMaxW=W*0.38; }
   else if (fmt.id==='f45') { iX=W*0.04;iY=H*0.04;iW=W*0.92;iH=H*0.46; tX=40;tY=H*0.53;tMaxW=W*0.88; }
@@ -1046,7 +757,6 @@ function tplCleanPackshot(ctx, v, fmt, img) {
   let ty=tY;
   const big = !portrait;
   const hlSz = big?44:36, hlLh = big?52:44;
-
   if (v.subheadline) {
     ctx.fillStyle=cs.accent; ctx.font=`600 ${big?12:13}px "DM Sans",sans-serif`;
     ctx.textAlign='left'; ctx.textBaseline='top';
@@ -1055,7 +765,6 @@ function tplCleanPackshot(ctx, v, fmt, img) {
   ctx.fillStyle=cs.text; ctx.font=`800 ${hlSz}px "DM Sans",sans-serif`;
   ctx.textAlign='left'; ctx.textBaseline='top';
   ty+=wrapText(ctx,v.headline,tX,ty,tMaxW,hlLh)*hlLh+12;
-
   if (v.price) {
     ctx.fillStyle=cs.accent; ctx.font=`800 ${big?28:24}px "DM Sans",sans-serif`;
     ctx.fillText(v.price,tX,ty); ty+=big?44:38;
@@ -1072,51 +781,45 @@ function tplArrowBenefits(ctx, v, fmt, img) {
   const isDark = cs.bg.startsWith('#1')||cs.bg.startsWith('#0')||cs.bg.startsWith('#2');
   const bg1=isDark?'#f8f8f8':cs.bg, bg2=isDark?'#efefef':cs.bg2;
   drawGradBg(ctx,W,H,bg1,bg2,150);
-  const textC=isDark?'#1a1a1a':cs.text, arrowC=isDark?cs.accent:cs.accent;
+  const textC=isDark?'#1a1a1a':cs.text, arrowC=cs.accent;
 
   let pCx,pCy,pSz;
-  if (fmt.id==='f169')      { pCx=W*0.50; pCy=H*0.50; pSz=H*0.70; }
-  else if (fmt.id==='f11')  { pCx=W*0.50; pCy=H*0.47; pSz=H*0.58; }
-  else if (fmt.id==='f45')  { pCx=W*0.50; pCy=H*0.46; pSz=H*0.44; }
-  else                      { pCx=W*0.50; pCy=H*0.44; pSz=H*0.36; }
-
+  if (fmt.id==='f169')     { pCx=W*0.50; pCy=H*0.50; pSz=H*0.70; }
+  else if (fmt.id==='f11') { pCx=W*0.50; pCy=H*0.47; pSz=H*0.58; }
+  else if (fmt.id==='f45') { pCx=W*0.50; pCy=H*0.46; pSz=H*0.44; }
+  else                     { pCx=W*0.50; pCy=H*0.44; pSz=H*0.36; }
   const pR = pSz*0.5;
   ctx.save(); ctx.globalAlpha=0.05; ctx.fillStyle=arrowC;
-  ctx.beginPath(); ctx.ellipse(pCx,pCy,pR*1.1,pR*1.1,0,0,Math.PI*2); ctx.fill();
-  ctx.restore();
-
+  ctx.beginPath(); ctx.ellipse(pCx,pCy,pR*1.1,pR*1.1,0,0,Math.PI*2); ctx.fill(); ctx.restore();
   imgContain(ctx,img,pCx-pSz/2,pCy-pSz/2,pSz,pSz,v.product?.code||'');
 
-  const bens = (v.benefits||[]).slice(0,8);
-  const bSz  = fmt.id==='f916'?11:(fmt.id==='f45'?12:13);
-  const bMaxW= fmt.id==='f169'?W*0.17:W*0.26;
+  const bens=(v.benefits||[]).slice(0,8);
+  const bSz=fmt.id==='f916'?11:(fmt.id==='f45'?12:13);
+  const bMaxW=fmt.id==='f169'?W*0.17:W*0.26;
 
-  // position specs per format
   function buildPositions(count) {
     const pos=[];
     if (fmt.id==='f11') {
       const defs=[
-        { a:'right', tx:pCx-pR-16, ty:pCy-pR*0.5, tipX:pCx-pR, tipY:pCy-pR*0.25 },
-        { a:'right', tx:pCx-pR-16, ty:pCy+pR*0.4, tipX:pCx-pR, tipY:pCy+pR*0.2  },
-        { a:'left',  tx:pCx+pR+16, ty:pCy-pR*0.5, tipX:pCx+pR, tipY:pCy-pR*0.25 },
-        { a:'left',  tx:pCx+pR+16, ty:pCy+pR*0.4, tipX:pCx+pR, tipY:pCy+pR*0.2  },
-        { a:'right', tx:pCx-pR-16, ty:pCy-pR*1.35,tipX:pCx-pR*0.6,tipY:pCy-pR   },
-        { a:'left',  tx:pCx+pR+16, ty:pCy-pR*1.35,tipX:pCx+pR*0.6,tipY:pCy-pR   },
-        { a:'right', tx:pCx-pR-16, ty:pCy+pR*1.35,tipX:pCx-pR*0.6,tipY:pCy+pR   },
-        { a:'left',  tx:pCx+pR+16, ty:pCy+pR*1.35,tipX:pCx+pR*0.6,tipY:pCy+pR   },
+        {a:'right',tx:pCx-pR-16,ty:pCy-pR*0.5,tipX:pCx-pR,tipY:pCy-pR*0.25},
+        {a:'right',tx:pCx-pR-16,ty:pCy+pR*0.4,tipX:pCx-pR,tipY:pCy+pR*0.2},
+        {a:'left', tx:pCx+pR+16,ty:pCy-pR*0.5,tipX:pCx+pR,tipY:pCy-pR*0.25},
+        {a:'left', tx:pCx+pR+16,ty:pCy+pR*0.4,tipX:pCx+pR,tipY:pCy+pR*0.2},
+        {a:'right',tx:pCx-pR-16,ty:pCy-pR*1.35,tipX:pCx-pR*0.6,tipY:pCy-pR},
+        {a:'left', tx:pCx+pR+16,ty:pCy-pR*1.35,tipX:pCx+pR*0.6,tipY:pCy-pR},
+        {a:'right',tx:pCx-pR-16,ty:pCy+pR*1.35,tipX:pCx-pR*0.6,tipY:pCy+pR},
+        {a:'left', tx:pCx+pR+16,ty:pCy+pR*1.35,tipX:pCx+pR*0.6,tipY:pCy+pR},
       ];
       return defs.slice(0,count);
     }
     if (fmt.id==='f169') {
       const half=Math.floor(count/2), rem=count-half;
-      const lx=pCx-pR-W*0.05;
-      const rx=pCx+pR+W*0.01;
+      const lx=pCx-pR-W*0.05, rx=pCx+pR+W*0.01;
       const lyStep=H/(half+1), ryStep=H/(rem+1);
-      for(let i=0;i<half;i++) pos.push({a:'right',tx:lx, ty:lyStep*(i+1), tipX:pCx-pR, tipY:pCy+(i-(half-1)/2)*pR*0.7});
-      for(let i=0;i<rem;i++)  pos.push({a:'left', tx:rx, ty:ryStep*(i+1), tipX:pCx+pR, tipY:pCy+(i-(rem-1)/2)*pR*0.7});
+      for(let i=0;i<half;i++) pos.push({a:'right',tx:lx,ty:lyStep*(i+1),tipX:pCx-pR,tipY:pCy+(i-(half-1)/2)*pR*0.7});
+      for(let i=0;i<rem;i++)  pos.push({a:'left', tx:rx,ty:ryStep*(i+1),tipX:pCx+pR,tipY:pCy+(i-(rem-1)/2)*pR*0.7});
       return pos;
     }
-    // 4:5 / 9:16
     const side=Math.floor(count/2), rem2=count-side;
     const yStep=pSz*0.95/Math.max(side,1), startY=pCy-pSz*0.38;
     const lx2=pCx-pR-14, rx2=pCx+pR+14;
@@ -1127,7 +830,7 @@ function tplArrowBenefits(ctx, v, fmt, img) {
 
   const positions=buildPositions(bens.length||4);
   bens.forEach((ben,i)=>{
-    const p=positions[i]; if(!p) return;
+    const p=positions[i]; if(!p)return;
     ctx.save(); ctx.fillStyle=textC; ctx.font=`600 ${bSz}px "DM Sans",sans-serif`;
     ctx.textAlign=p.a; ctx.textBaseline='middle';
     const words=ben.split(' '); const lines=[]; let line='';
@@ -1136,17 +839,12 @@ function tplArrowBenefits(ctx, v, fmt, img) {
     const lh=bSz+5, bH=lines.length*lh;
     lines.forEach((l,li)=>ctx.fillText(l,p.tx,p.ty-bH/2+li*lh+lh/2));
     ctx.restore();
-    // dot
     const dX=p.a==='right'?p.tx+6:p.tx-6;
     ctx.save(); ctx.fillStyle=arrowC; ctx.beginPath(); ctx.arc(dX,p.ty,3,0,Math.PI*2); ctx.fill(); ctx.restore();
-    // arrow
     const aStartX=p.a==='right'?dX-10:dX+10;
     drawArrow(ctx,aStartX,p.ty,p.tipX,p.tipY,arrowC,1.2,7);
   });
-
   drawLogo(ctx,W-16,H-14,isDark?'#aaaaaa':cs.textMuted,11);
-
-  // brand name below product
   if (v.headline) {
     ctx.fillStyle=cs.accent; ctx.font=`700 ${bSz+1}px "DM Sans",sans-serif`;
     ctx.textAlign='center'; ctx.textBaseline='bottom';
@@ -1157,25 +855,21 @@ function tplArrowBenefits(ctx, v, fmt, img) {
 function tplHeroBanner(ctx, v, fmt, img) {
   const cs=getScheme(v.colorScheme), W=fmt.width, H=fmt.height;
   ctx.fillStyle=cs.bg; ctx.fillRect(0,0,W,H);
-
   const portrait=fmt.id==='f45'||fmt.id==='f916';
   if (portrait) { ctx.fillStyle=cs.accent; ctx.fillRect(0,0,W,H*0.43); }
   else           { ctx.fillStyle=cs.accent; ctx.fillRect(0,0,W*0.43,H); }
 
   let tX,tY,tMaxW,iX,iY,iW,iH;
-  if (fmt.id==='f169') { tX=36;tY=H*0.14;tMaxW=W*0.38; iX=W*0.44;iY=H*0.06;iW=W*0.52;iH=H*0.88; }
+  if (fmt.id==='f169')     { tX=36;tY=H*0.14;tMaxW=W*0.38; iX=W*0.44;iY=H*0.06;iW=W*0.52;iH=H*0.88; }
   else if (fmt.id==='f11') { tX=34;tY=H*0.14;tMaxW=W*0.38; iX=W*0.44;iY=H*0.10;iW=W*0.52;iH=H*0.80; }
   else if (fmt.id==='f45') { tX=30;tY=H*0.06;tMaxW=W*0.88; iX=W*0.05;iY=H*0.44;iW=W*0.90;iH=H*0.48; }
   else                     { tX=30;tY=H*0.06;tMaxW=W*0.88; iX=W*0.07;iY=H*0.44;iW=W*0.86;iH=H*0.48; }
-
   imgContain(ctx,img,iX,iY,iW,iH,'');
 
-  const onAccent=!portrait;
-  let ty=tY;
+  const onAccent=!portrait; let ty=tY;
   ctx.fillStyle=onAccent?'#fff':(cs.bg==='#ffffff'?cs.text:'#fff');
   ctx.font=`800 ${portrait?38:44}px "DM Sans",sans-serif`; ctx.textAlign='left'; ctx.textBaseline='top';
   ty+=wrapText(ctx,v.headline,tX,ty,tMaxW,portrait?46:52)*(portrait?46:52)+12;
-
   if (v.subheadline) {
     ctx.fillStyle=onAccent?'rgba(255,255,255,0.8)':cs.textMuted;
     ctx.font=`400 ${portrait?15:16}px "DM Sans",sans-serif`;
@@ -1186,7 +880,7 @@ function tplHeroBanner(ctx, v, fmt, img) {
     ctx.fillText(v.price,tX,ty); ty+=portrait?38:44;
   }
   if (v.cta) {
-    const cH=44, cW=200, cY=Math.min(ty, (portrait?iY:H)-cH-16);
+    const cH=44, cW=200, cY=Math.min(ty,(portrait?iY:H)-cH-16);
     drawBtn(ctx,v.cta,tX,cY,cW,cH,onAccent?'#fff':cs.btnBg,onAccent?cs.accent:cs.btnText);
   }
   if (v.badge) drawBadge(ctx,v.badge,W-64,28,cs.bg,cs.accent,11);
@@ -1197,7 +891,6 @@ function tplPricePromo(ctx, v, fmt, img) {
   const cs=getScheme(v.colorScheme), W=fmt.width, H=fmt.height;
   drawGradBg(ctx,W,H,cs.bg,cs.bg2,145);
   const cx=W/2;
-
   if (fmt.id==='f169') {
     let ty=H*0.14; const tX=56, tMaxW=W*0.40;
     if (v.price) {
@@ -1235,16 +928,12 @@ function tplDarkLuxury(ctx, v, fmt, img) {
   const W=fmt.width, H=fmt.height;
   const cs={ bg:'#0d0d1a',bg2:'#1a0a2e',accent:'#d4af37',text:'#fff',textMuted:'rgba(255,255,255,0.5)',btnBg:'#d4af37',btnText:'#0d0d1a' };
   drawGradBg(ctx,W,H,cs.bg,cs.bg2);
-
-  // corner accents
   const cm=22, cl=18;
   ctx.save(); ctx.strokeStyle=cs.accent; ctx.lineWidth=1.5; ctx.globalAlpha=0.4;
   [[cm,cm,cm+cl,cm],[cm,cm,cm,cm+cl],[W-cm,cm,W-cm-cl,cm],[W-cm,cm,W-cm,cm+cl],
    [cm,H-cm,cm+cl,H-cm],[cm,H-cm,cm,H-cm-cl],[W-cm,H-cm,W-cm-cl,H-cm],[W-cm,H-cm,W-cm,H-cm-cl]
   ].forEach(([x1,y1,x2,y2])=>{ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); });
   ctx.restore();
-
-  // glow
   const portrait=fmt.id==='f45'||fmt.id==='f916';
   const gCx=portrait?W/2:W*0.67, gCy=portrait?H*0.38:H*0.5, gR=Math.min(W,H)*0.38;
   const grd=ctx.createRadialGradient(gCx,gCy,0,gCx,gCy,gR);
@@ -1252,18 +941,14 @@ function tplDarkLuxury(ctx, v, fmt, img) {
   ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
 
   let iX,iY,iW,iH,tX,tY,tMaxW;
-  if (fmt.id==='f169') { iX=W*0.41;iY=H*0.08;iW=W*0.54;iH=H*0.84; tX=48;tY=H*0.16;tMaxW=W*0.36; }
+  if (fmt.id==='f169')     { iX=W*0.41;iY=H*0.08;iW=W*0.54;iH=H*0.84; tX=48;tY=H*0.16;tMaxW=W*0.36; }
   else if (fmt.id==='f11') { iX=W*0.42;iY=H*0.12;iW=W*0.52;iH=H*0.76; tX=42;tY=H*0.16;tMaxW=W*0.36; }
   else if (fmt.id==='f45') { iX=W*0.05;iY=H*0.06;iW=W*0.90;iH=H*0.42; tX=42;tY=H*0.52;tMaxW=W*0.88; }
   else                     { iX=W*0.08;iY=H*0.06;iW=W*0.84;iH=H*0.40; tX=42;tY=H*0.50;tMaxW=W*0.84; }
-
   imgContain(ctx,img,iX,iY,iW,iH,'');
   if (v.badge) drawBadge(ctx,v.badge,W-66,28,cs.accent,cs.btnText,11);
-
-  // thin gold rule
   ctx.save(); ctx.strokeStyle=cs.accent; ctx.lineWidth=1.5; ctx.globalAlpha=0.5;
-  ctx.beginPath(); ctx.moveTo(tX,tY-14); ctx.lineTo(tX+Math.min(tMaxW*0.55,170),tY-14); ctx.stroke();
-  ctx.restore();
+  ctx.beginPath(); ctx.moveTo(tX,tY-14); ctx.lineTo(tX+Math.min(tMaxW*0.55,170),tY-14); ctx.stroke(); ctx.restore();
 
   let ty=tY;
   ctx.fillStyle=cs.text; ctx.font=`800 ${portrait?34:42}px "DM Sans",sans-serif`;
@@ -1311,24 +996,8 @@ async function genPreviews(v, product) {
 }
 
 // ─────────────────────────────────────────────
-// FEED / GQL
+// FEED LOADING — direct URL (Heureka XML / Google XML / JSON)
 // ─────────────────────────────────────────────
-async function gql(query, variables={}) {
-  const res=await fetch($('inp-worker').value.trim(),{
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-Access-Token':$('inp-token').value.trim()},
-    body:JSON.stringify({query,variables}),
-  });
-  const text=await res.text();
-  let json; try{ json=JSON.parse(text); }catch{ throw new Error('API nevrátilo JSON'); }
-  if(json.errors) throw new Error(json.errors.map(e=>e.message).join('\n'));
-  if(!json.data)  throw new Error('Chybí data v odpovědi.');
-  return json.data;
-}
-
-const Q_EXT = `query P($offset:Int,$limit:Int){products(offset:$offset,limit:$limit){items{id title code inStore price{withVat} description images{url alt} parameters{name value}} hasNextPage}}`;
-const Q_MIN = `query P($offset:Int,$limit:Int){products(offset:$offset,limit:$limit){items{id title code inStore price{withVat}} hasNextPage}}`;
-
 function parseBenList(html) {
   if (!html) return [];
   const d=document.createElement('div'); d.innerHTML=html;
@@ -1338,31 +1007,124 @@ function parseBenList(html) {
 }
 
 function normalizeProduct(raw) {
-  const imgs=(raw.images||[]).map(i=>i.url).filter(Boolean);
-  const bens=
-    parseBenList(raw.description).length>=2 ? parseBenList(raw.description) :
-    (raw.parameters||[]).filter(p=>p.value&&p.value!=='Ne'&&p.value!=='Ano').map(p=>`${p.name}: ${p.value}`).slice(0,6).length>=2
-      ? (raw.parameters||[]).filter(p=>p.value&&p.value!=='Ne'&&p.value!=='Ano').map(p=>`${p.name}: ${p.value}`).slice(0,6)
-      : ['Osvědčená kvalita','Přírodní složení','Viditelné výsledky','Šetrné k pokožce','Pro každý den','Testováno dermatology'];
+  const imgs=(raw.images||[]).map(i=>(typeof i==='string'?i:i.url)).filter(Boolean);
+  const rawBens=parseBenList(raw.description);
+  const paramBens=(raw.parameters||[])
+    .filter(p=>p.value&&p.value!=='Ne'&&p.value!=='Ano')
+    .map(p=>`${p.name}: ${p.value}`).slice(0,6);
+  const bens = rawBens.length>=2 ? rawBens
+    : paramBens.length>=2 ? paramBens
+    : ['Osvědčená kvalita','Přírodní složení','Viditelné výsledky','Šetrné k pokožce','Pro každý den','Testováno dermatology'];
   return {
-    id:String(raw.id), title:raw.title||`Produkt ${raw.id}`, code:raw.code||'',
-    price:Number(raw.price?.withVat||0), packshot:imgs[0]||null, altImages:imgs.slice(1),
-    description:raw.description||'', parameters:raw.parameters||[], benefits:bens, stock:Number(raw.inStore||0),
+    id:String(raw.id||uid()),
+    title:raw.title||`Produkt ${raw.id}`,
+    code:raw.code||'',
+    price:Number(raw.price?.withVat||raw.price||0),
+    packshot:imgs[0]||null,
+    altImages:imgs.slice(1),
+    description:raw.description||'',
+    parameters:raw.parameters||[],
+    benefits:bens,
+    stock:Number(raw.inStore||raw.stock||0),
   };
 }
 
+function parseHeurekaXML(doc) {
+  return [...doc.querySelectorAll('SHOPITEM')].map(item => {
+    const t = tag => item.querySelector(tag)?.textContent?.trim()||'';
+    const id    = t('ITEM_ID')||t('ID')||uid();
+    const title = t('PRODUCTNAME')||t('PRODUCT_NAME')||t('NAME')||'';
+    const price = parseFloat((t('PRICE_VAT')||t('PRICE')||'0').replace(',','.'));
+    const imgs  = [t('IMGURL'), ...[...item.querySelectorAll('IMGURL_ALTERNATIVE')].map(el=>el.textContent.trim())].filter(Boolean);
+    const params= [...item.querySelectorAll('PARAM')].map(p=>({
+      name: p.querySelector('PARAM_NAME')?.textContent?.trim()||'',
+      value:p.querySelector('VAL')?.textContent?.trim()||'',
+    }));
+    return normalizeProduct({
+      id, title, code: t('EAN')||t('PRODUCT_CODE')||id,
+      price:{withVat:price},
+      images:imgs,
+      description:t('DESCRIPTION'),
+      parameters:params,
+      inStore:t('DELIVERY_DATE')==='0'?10:0,
+    });
+  }).filter(p=>p.title);
+}
+
+function parseGoogleXML(doc) {
+  const NS='http://base.google.com/ns/1.0';
+  return [...doc.querySelectorAll('item')].map(item=>{
+    const t  = tag => item.querySelector(tag)?.textContent?.trim()||'';
+    const tg = tag => item.getElementsByTagNameNS(NS,tag)[0]?.textContent?.trim()||'';
+    const id    = tg('id')||t('guid')||uid();
+    const title = tg('title')||t('title')||'';
+    const prStr = tg('price')||t('price')||'0';
+    const price = parseFloat(prStr.replace(/[^\d.,]/g,'').replace(',','.'));
+    const imgs  = [tg('image_link')||'',
+                   ...[...item.getElementsByTagNameNS(NS,'additional_image_link')].map(el=>el.textContent.trim())
+                  ].filter(Boolean);
+    return normalizeProduct({
+      id, title, code:tg('mpn')||tg('gtin')||id,
+      price:{withVat:price},
+      images:imgs,
+      description:tg('description')||t('description'),
+      parameters:[],
+      inStore:(tg('availability')||'').includes('in_stock')?10:0,
+    });
+  }).filter(p=>p.title);
+}
+
+function parseJSONFeed(json) {
+  let items=[];
+  if (Array.isArray(json))          items=json;
+  else if (json.items)              items=json.items;
+  else if (json.products)           items=json.products;
+  else if (json.data?.items)        items=json.data.items;
+  else if (json.data?.products)     items=json.data.products;
+  return items.map(raw=>{
+    const imgs=(raw.images||[]).map(i=>(typeof i==='string'?i:i.url||i.imgUrl||'')).filter(Boolean);
+    if (!imgs.length && (raw.imgurl||raw.img_url||raw.image)) imgs.push(raw.imgurl||raw.img_url||raw.image);
+    return normalizeProduct({
+      id:String(raw.id||raw.ID||uid()),
+      title:raw.title||raw.name||raw.productname||'',
+      code:raw.code||raw.ean||raw.mpn||'',
+      price:{withVat:Number(raw.price_vat||raw.price||raw.priceVat||0)},
+      images:imgs.filter(Boolean),
+      description:raw.description||raw.desc||'',
+      parameters:raw.parameters||raw.params||[],
+      inStore:Number(raw.inStore||raw.stock||raw.quantity||0),
+    });
+  }).filter(p=>p.title);
+}
+
 async function loadFeedProducts() {
-  let offset=0, all=[], ext=true;
-  while(true){
-    let data;
-    try { data=await gql(ext?Q_EXT:Q_MIN,{offset,limit:200}); }
-    catch(e){ if(ext&&offset===0){ ext=false; data=await gql(Q_MIN,{offset,limit:200}); } else throw e; }
-    const items=data.products.items||[];
-    all.push(...items.map(normalizeProduct));
-    if(!data.products.hasNextPage||items.length===0||all.length>=2000) break;
-    offset+=200;
+  const url = $('inp-feed-url').value.trim();
+  if (!url) throw new Error('Zadejte URL feedu');
+  localStorage.setItem(FEED_URL_KEY, url);
+
+  let res;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+  } catch(e) {
+    if (e.name==='TypeError') throw new Error('CORS nebo síťová chyba – server musí mít povolený přístup z prohlížeče (Access-Control-Allow-Origin)');
+    throw e;
   }
-  return all;
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  const text = await res.text();
+
+  // JSON?
+  if (text.trimStart().startsWith('{') || text.trimStart().startsWith('[')) {
+    try { return parseJSONFeed(JSON.parse(text)); } catch {}
+  }
+
+  // XML
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('Neplatný XML feed');
+  if (doc.querySelector('SHOPITEM'))   return parseHeurekaXML(doc);
+  if (doc.querySelector('item'))       return parseGoogleXML(doc);
+
+  throw new Error('Nerozpoznaný formát feedu (podporujeme Heureka XML, Google Shopping XML, JSON)');
 }
 
 // ─────────────────────────────────────────────
@@ -1400,7 +1162,10 @@ async function generateVariants(product, config) {
     };
     variants.push(v);
   }
-  for(const v of variants) await genPreviews(v,product);
+  for(let i=0;i<variants.length;i++){
+    setProgress(Math.round((i/variants.length)*90), 'Generuji bannery…', `Varianta ${i+1} / ${variants.length}`);
+    await genPreviews(variants[i],product);
+  }
   return variants;
 }
 
@@ -1414,7 +1179,7 @@ function saveProjectLS(p) {
   localStorage.setItem(PROJECTS_KEY,JSON.stringify(ps.slice(0,20)));
 }
 function deleteProjectLS(id) { localStorage.setItem(PROJECTS_KEY,JSON.stringify(loadProjects().filter(p=>p.id!==id))); }
-function exportProjJSON(p) { downloadBlob(new Blob([JSON.stringify(p,null,2)],{type:'application/json'}),`project_${p.id}.json`); }
+function exportProjJSON(p) { downloadBlob(new Blob([JSON.stringify(p,null,2)],{type:'application/json'}),`projekt_${p.id}.json`); }
 
 // ─────────────────────────────────────────────
 // EXPORT
@@ -1431,11 +1196,13 @@ async function exportPNG(v, fmtId) {
 
 async function exportBulkZIP(variants) {
   if(!variants.length){ showToast('Žádné schválené varianty','error'); return; }
-  showToast('Generuji ZIP…');
+  showOverlay('Generuji ZIP…','Kreslím bannery');
   const zip=new JSZip();
   const manifest={generated:new Date().toISOString(),product:APP.selectedProduct?.title,variants:[]};
-  for(const v of variants){
-    const folder=zip.folder(`variant_${v.id}`);
+  for(let i=0;i<variants.length;i++){
+    const v=variants[i];
+    setProgress(Math.round(i/variants.length*90), 'Generuji ZIP…', `Varianta ${i+1} / ${variants.length}`);
+    const folder=zip.folder(`varianta_${v.id}`);
     for(const fmt of FORMATS){
       try{
         const c=document.createElement('canvas');
@@ -1445,32 +1212,50 @@ async function exportBulkZIP(variants) {
     }
     manifest.variants.push({id:v.id,template:v.template,colorScheme:v.colorScheme,headline:v.headline,status:v.status});
   }
+  setProgress(95,'Komprimuji…','');
   zip.file('manifest.json',JSON.stringify(manifest,null,2));
   const blob=await zip.generateAsync({type:'blob'});
-  downloadBlob(blob,'tiande_banners.zip');
+  hideOverlay();
+  downloadBlob(blob,'tiande_bannery.zip');
   showToast(`ZIP: ${variants.length} variant × 4 formáty`);
 }
 
 // ─────────────────────────────────────────────
-// UI — STAGE SWITCHING
+// UI — STAGES
 // ─────────────────────────────────────────────
 function showStage(name) {
   ['select','configure','workspace'].forEach(s=>{
-    $(`stage-${s}`)?.classList.toggle('hidden',s!==name);
+    $(`stage-${s}`)?.classList.toggle('hidden', s!==name);
   });
 }
 
 // ─────────────────────────────────────────────
-// UI — PRODUCT LIST
+// UI — SIDEBAR
 // ─────────────────────────────────────────────
 function renderProductList(q='') {
   const el=$('sidebar-products');
-  const list=q?APP.products.filter(p=>p.title.toLowerCase().includes(q.toLowerCase())||p.code.toLowerCase().includes(q.toLowerCase())):APP.products;
-  if(!list.length){ el.innerHTML=`<div class="sidebar-empty">${q?'Žádné výsledky':'Načtěte feed pro zobrazení produktů'}</div>`; return; }
-  el.innerHTML=list.slice(0,150).map(p=>`
+  const list=q
+    ? APP.products.filter(p=>
+        p.title.toLowerCase().includes(q.toLowerCase()) ||
+        p.code.toLowerCase().includes(q.toLowerCase()))
+    : APP.products;
+  $('sidebar-count').textContent=APP.products.length;
+  if(!list.length){
+    el.innerHTML=`<div class="sidebar-empty"><div class="sidebar-empty-ico">◈</div><p>${q?'Žádné výsledky pro „'+q+'"':'Klikněte na <strong>Načíst feed</strong><br>pro zobrazení produktů'}</p></div>`;
+    return;
+  }
+  el.innerHTML=list.slice(0,200).map(p=>`
     <div class="product-item${APP.selectedProduct?.id===p.id?' selected':''}" data-pid="${p.id}">
-      <div class="product-item-title">${p.title}</div>
-      <div class="product-item-meta"><span>${p.code}</span><span class="product-item-price">${formatPrice(p.price)}</span></div>
+      ${p.packshot
+        ?`<img class="p-thumb" src="${p.packshot}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\'p-thumb-ph\'>◫</div>'" />`
+        :`<div class="p-thumb-ph">◫</div>`}
+      <div class="p-text">
+        <div class="p-title" title="${p.title}">${p.title}</div>
+        <div class="p-meta">
+          <span class="p-code">${p.code}</span>
+          <span class="p-price">${formatPrice(p.price)}</span>
+        </div>
+      </div>
     </div>`).join('');
 }
 
@@ -1484,18 +1269,18 @@ function renderBundleList() {
 }
 
 // ─────────────────────────────────────────────
-// UI — CONFIGURE STAGE
+// UI — CONFIGURE
 // ─────────────────────────────────────────────
 function renderConfigure(p) {
   $('cfg-product-preview').innerHTML=`
-    ${p.packshot?`<img class="cfg-product-img" src="${p.packshot}" alt="" onerror="this.style.display='none'" />`:''}
-    <div class="cfg-product-info">
+    ${p.packshot?`<img class="cfg-img" src="${p.packshot}" alt="" onerror="this.style.display='none'" />`:''}
+    <div class="cfg-info">
       <h3>${p.title}</h3>
       <div class="code">${p.code}</div>
       <div class="price">${formatPrice(p.price)}</div>
     </div>`;
   $('template-checks').innerHTML=TEMPLATES.map(t=>`
-    <label class="template-check-item">
+    <label class="tpl-check-item">
       <input type="checkbox" name="tmpl" value="${t.id}" checked />
       <span>${t.icon} ${t.name}</span>
     </label>`).join('');
@@ -1504,47 +1289,76 @@ function renderConfigure(p) {
 // ─────────────────────────────────────────────
 // UI — VARIANT GRID
 // ─────────────────────────────────────────────
+function updateFilterCounts() {
+  const all=APP.variants.length;
+  const pending =APP.variants.filter(v=>v.status==='pending').length;
+  const approved=APP.variants.filter(v=>v.status==='approved').length;
+  const rejected=APP.variants.filter(v=>v.status==='rejected').length;
+  $('tc-all').textContent=all;
+  $('tc-pending').textContent=pending;
+  $('tc-approved').textContent=approved;
+  $('tc-rejected').textContent=rejected;
+}
+
+function filteredVariants() {
+  if (APP.activeFilter==='all') return APP.variants;
+  return APP.variants.filter(v=>v.status===APP.activeFilter);
+}
+
 function variantCardHTML(v) {
   const tmpl=TEMPLATES.find(t=>t.id===v.template)||TEMPLATES[0];
   const cs=getScheme(v.colorScheme);
   const sCls={pending:'status-pending',approved:'status-approved',rejected:'status-rejected'}[v.status];
   const sLbl={pending:'Čeká',approved:'Schváleno',rejected:'Zamítnuto'}[v.status];
-  const prevs=FORMATS.map(f=>`
-    <div class="variant-preview-item">
-      ${v.previews[f.id]?`<img class="variant-preview-img" src="${v.previews[f.id]}" style="aspect-ratio:${f.width}/${f.height}" loading="lazy" />`
-        :`<div class="variant-preview-img" style="aspect-ratio:${f.width}/${f.height};background:#1a2235"></div>`}
-      <div class="variant-preview-label">${f.name}</div>
+
+  const showFormats = APP.activeFormat==='all' ? FORMATS : FORMATS.filter(f=>f.id===APP.activeFormat);
+  const gridCls = showFormats.length===1 ? 'g1' : 'g4';
+
+  const prevs=showFormats.map(f=>`
+    <div class="vp-item">
+      ${v.previews[f.id]
+        ?`<img class="vp-img" src="${v.previews[f.id]}" style="aspect-ratio:${f.width}/${f.height}" loading="lazy" />`
+        :`<div class="vp-img" style="aspect-ratio:${f.width}/${f.height};background:#1a2235"></div>`}
+      <div class="vp-label">${f.name}</div>
     </div>`).join('');
-  return `<div class="variant-card" id="vcard-${v.id}">
-    <div class="variant-card-header">
-      <div class="variant-card-meta">
-        <span class="variant-scheme-dot" style="background:${cs.accent}"></span>
-        <span class="variant-template-name">${tmpl.icon} ${tmpl.name}</span>
+
+  const cardCls = v.status==='approved'?' is-approved' : v.status==='rejected'?' is-rejected':'';
+  return `<div class="variant-card${cardCls}" id="vcard-${v.id}">
+    <div class="vc-hdr">
+      <div class="vc-meta">
+        <span class="scheme-dot" style="background:${cs.accent}"></span>
+        <span class="vc-tpl">${tmpl.icon} ${tmpl.name}</span>
       </div>
       <span class="status-badge ${sCls}">${sLbl}</span>
     </div>
-    <div class="variant-headline" title="${v.headline}">${v.headline}</div>
-    <div class="variant-previews">${prevs}</div>
-    <div class="variant-card-actions">
-      <button class="btn btn-outline btn-sm" data-approve="${v.id}">✓</button>
-      <button class="btn btn-outline btn-sm" data-reject="${v.id}">✗</button>
+    <div class="vc-headline" title="${v.headline}">${v.headline}</div>
+    <div class="vc-previews ${gridCls}">${prevs}</div>
+    <div class="vc-actions">
+      <button class="btn btn-outline btn-sm" data-approve="${v.id}" title="Schválit">✓</button>
+      <button class="btn btn-outline btn-sm" data-reject="${v.id}"  title="Zamítnout">✗</button>
       <button class="btn btn-outline btn-sm" data-edit="${v.id}">✏ Upravit</button>
-      <button class="btn btn-outline btn-sm" data-dup="${v.id}">⧉</button>
-      <button class="btn btn-outline btn-sm" data-regen="${v.id}">↺</button>
+      <button class="btn btn-outline btn-sm" data-dup="${v.id}"   title="Duplikovat">⧉</button>
+      <button class="btn btn-outline btn-sm" data-regen="${v.id}" title="Regenerovat">↺</button>
     </div>
   </div>`;
 }
 
 function renderVariantGrid() {
   if (APP.selectedProduct) $('ws-product-name').textContent=APP.selectedProduct.title;
+  updateFilterCounts();
   const grid=$('variant-grid');
-  if(!APP.variants.length){ grid.innerHTML='<div style="padding:40px;color:rgba(255,255,255,0.4)">Žádné varianty</div>'; return; }
-  grid.innerHTML=APP.variants.map(variantCardHTML).join('');
+  const fv=filteredVariants();
+  if(!fv.length){
+    grid.innerHTML=`<div style="padding:40px;color:rgba(255,255,255,0.3);grid-column:1/-1">${APP.activeFilter==='all'?'Žádné varianty':'Žádné varianty v tomto stavu'}</div>`;
+    return;
+  }
+  grid.innerHTML=fv.map(variantCardHTML).join('');
 }
 
 function updateCard(v) {
   const old=$(`vcard-${v.id}`);
   if(old){ const tmp=document.createElement('div'); tmp.innerHTML=variantCardHTML(v); old.replaceWith(tmp.firstChild); }
+  updateFilterCounts();
 }
 
 // ─────────────────────────────────────────────
@@ -1563,52 +1377,52 @@ function closeEditor() { $('editor-modal').classList.add('hidden'); APP.editingV
 
 function buildEditorPreviews(v) {
   $('editor-previews').innerHTML=FORMATS.map(f=>`
-    <div class="editor-preview-item">
-      <img class="editor-preview-img" id="epv-${f.id}" src="${v.previews[f.id]||''}" style="aspect-ratio:${f.width}/${f.height}" />
-      <div class="editor-preview-label">${f.name} <button class="btn-ghost" data-dl-fmt="${f.id}" style="color:#6ea8ff">↓ PNG</button></div>
+    <div>
+      <img class="ep-img" id="epv-${f.id}" src="${v.previews[f.id]||''}" style="aspect-ratio:${f.width}/${f.height}" />
+      <div class="ep-label">${f.name} <button class="btn-ghost" data-dl-fmt="${f.id}" style="color:#6ea8ff">↓ PNG</button></div>
     </div>`).join('');
 }
 
 function buildEditorFields(v) {
   const tmplOpts=TEMPLATES.map(t=>`
-    <button class="template-option${v.template===t.id?' selected':''}" data-set-tpl="${t.id}">
-      <span class="template-option-icon">${t.icon}</span>${t.name}
+    <button class="tpl-option${v.template===t.id?' selected':''}" data-set-tpl="${t.id}">
+      <span class="tpl-option-ico">${t.icon}</span>${t.name}
     </button>`).join('');
   const schemeOpts=COLOR_SCHEMES.map(s=>`
-    <div class="scheme-option${v.colorScheme===s.id?' selected':''}" data-set-cs="${s.id}" title="${s.name}"
+    <div class="scheme-opt${v.colorScheme===s.id?' selected':''}" data-set-cs="${s.id}" title="${s.name}"
       style="background:linear-gradient(135deg,${s.bg},${s.accent})"></div>`).join('');
   const benItems=(v.benefits||[]).map((b,i)=>`
-    <div class="benefit-item">
-      <input type="text" value="${b}" data-bi="${i}" />
+    <div class="ben-item">
+      <input type="text" value="${b.replace(/"/g,'&quot;')}" data-bi="${i}" />
       ${i>0?`<button class="btn-ghost" data-bi-up="${i}" title="Nahoru">↑</button>`:''}
       <button class="btn-ghost" data-bi-del="${i}" title="Smazat">✕</button>
     </div>`).join('');
 
   $('editor-fields').innerHTML=`
-    <div class="editor-field"><label>Šablona</label><div class="template-selector">${tmplOpts}</div></div>
-    <div class="editor-field"><label>Barevné schéma</label><div class="scheme-selector">${schemeOpts}</div></div>
+    <div class="editor-field"><label>Šablona</label><div class="tpl-selector">${tmplOpts}</div></div>
+    <div class="editor-field"><label>Barevné schéma</label><div class="scheme-sel">${schemeOpts}</div></div>
     <div class="editor-field"><label>Headline</label><textarea id="ed-hl" rows="2">${v.headline}</textarea></div>
     <div class="editor-field"><label>Subheadline</label><input type="text" id="ed-sh" value="${v.subheadline||''}" /></div>
     <div class="editor-field"><label>CTA</label><input type="text" id="ed-cta" value="${v.cta||''}" /></div>
-    <div class="editor-field"><label>Badge</label><input type="text" id="ed-badge" value="${v.badge||''}" placeholder="např. NOVINKA" /></div>
+    <div class="editor-field"><label>Badge</label><input type="text" id="ed-badge" value="${v.badge||''}" placeholder="NOVINKA" /></div>
     <div class="editor-field"><label>Cena</label><input type="text" id="ed-price" value="${v.price||''}" /></div>
     <div class="editor-field">
       <label>Benefity</label>
-      <div class="benefits-list" id="ed-bens">${benItems}</div>
+      <div class="ben-list" id="ed-bens">${benItems}</div>
       <button class="btn btn-outline btn-sm" id="btn-add-ben" style="margin-top:6px">+ Benefit</button>
     </div>
     <div class="editor-field">
       <label>Obrázek</label>
-      <div class="asset-mode-btns">
-        <button class="asset-mode-btn${v.imageMode==='packshot'?' active':''}" data-amode="packshot">Packshot</button>
-        <button class="asset-mode-btn${v.imageMode==='lifestyle'?' active':''}" data-amode="lifestyle">Lifestyle</button>
-        <button class="asset-mode-btn${v.imageMode==='custom'?' active':''}" data-amode="custom">Vlastní URL</button>
-        <button class="asset-mode-btn" id="btn-upload">Upload</button>
+      <div class="asset-btns">
+        <button class="asset-btn${v.imageMode==='packshot'?' active':''}" data-amode="packshot">Packshot</button>
+        <button class="asset-btn${v.imageMode==='lifestyle'?' active':''}" data-amode="lifestyle">Lifestyle</button>
+        <button class="asset-btn${v.imageMode==='custom'?' active':''}" data-amode="custom">URL</button>
+        <button class="asset-btn" id="btn-upload">Upload</button>
       </div>
       <input type="url" id="ed-imgurl" placeholder="https://…" value="${v.imageUrl||''}" ${v.imageMode!=='custom'?'style="display:none"':''} />
       <input type="file" id="inp-file" accept="image/*" class="hidden" />
     </div>
-    <div class="editor-footer">
+    <div class="ed-footer">
       <button class="btn btn-outline" id="btn-ed-rej">✗ Zamítnout</button>
       <button class="btn btn-primary" id="btn-ed-app">✓ Schválit</button>
     </div>`;
@@ -1617,12 +1431,12 @@ function buildEditorFields(v) {
 }
 
 function readEditorIntoVariant(v) {
-  v.headline   = $('ed-hl')?.value    || v.headline;
-  v.subheadline= $('ed-sh')?.value    || '';
-  v.cta        = $('ed-cta')?.value   || '';
-  v.badge      = $('ed-badge')?.value || '';
-  v.price      = $('ed-price')?.value || '';
-  v.benefits   = [...document.querySelectorAll('[data-bi]')].map(i=>i.value).filter(Boolean);
+  v.headline    = $('ed-hl')?.value    || v.headline;
+  v.subheadline = $('ed-sh')?.value    || '';
+  v.cta         = $('ed-cta')?.value   || '';
+  v.badge       = $('ed-badge')?.value || '';
+  v.price       = $('ed-price')?.value || '';
+  v.benefits    = [...document.querySelectorAll('[data-bi]')].map(i=>i.value).filter(Boolean);
 }
 
 function scheduleEditorRefresh(v) {
@@ -1638,7 +1452,6 @@ function scheduleEditorRefresh(v) {
 function bindEditorFields(v) {
   const sched=()=>{ readEditorIntoVariant(v); scheduleEditorRefresh(v); };
   ['ed-hl','ed-sh','ed-cta','ed-badge','ed-price'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input',sched); });
-
   $('editor-fields').addEventListener('input', e=>{ if(e.target.dataset.bi!==undefined) sched(); });
   $('editor-fields').addEventListener('click', e=>{
     const t=e.target;
@@ -1656,14 +1469,12 @@ function bindEditorFields(v) {
     }
     if(t.id==='btn-add-ben') { readEditorIntoVariant(v); v.benefits.push('Nový benefit'); buildEditorFields(v); sched(); }
     if(t.id==='btn-upload') $('inp-file').click();
-    if(t.id==='btn-ed-app') { v.status='approved'; updateCard(v); closeEditor(); showToast('Schváleno'); }
+    if(t.id==='btn-ed-app') { v.status='approved'; updateCard(v); closeEditor(); showToast('Schváleno ✓'); }
     if(t.id==='btn-ed-rej') { v.status='rejected'; updateCard(v); closeEditor(); }
   });
-
   $('editor-previews').addEventListener('click', e=>{
     if(e.target.dataset.dlFmt) exportPNG(v,e.target.dataset.dlFmt);
   });
-
   const urlInp=$('ed-imgurl');
   if(urlInp) urlInp.addEventListener('change',()=>{ v.imageUrl=urlInp.value; sched(); });
   const fileInp=$('inp-file');
@@ -1681,43 +1492,47 @@ function openProjects() { $('projects-modal').classList.remove('hidden'); render
 function renderProjectsList() {
   const ps=loadProjects();
   $('projects-list').innerHTML=ps.length
-    ? ps.map(p=>`<div class="project-item">
-        <div class="project-item-info">
-          <div class="project-item-name">${p.name||'Bez názvu'}</div>
-          <div class="project-item-meta">${p.product||'—'} · ${p.variantCount||0} variant · ${new Date(p.savedAt).toLocaleDateString('cs-CZ')}</div>
+    ? ps.map(p=>`<div class="proj-item">
+        <div class="proj-info">
+          <div class="proj-name">${p.name||'Bez názvu'}</div>
+          <div class="proj-meta">${p.product||'—'} · ${p.variantCount||0} variant · ${new Date(p.savedAt).toLocaleDateString('cs-CZ')}</div>
         </div>
-        <div class="project-item-actions">
+        <div class="proj-actions">
           <button class="btn btn-outline btn-sm" data-load-p="${p.id}">Načíst</button>
           <button class="btn btn-outline btn-sm" data-exp-p="${p.id}">JSON</button>
           <button class="btn btn-outline btn-sm" data-del-p="${p.id}" style="color:#f06b6b">✕</button>
         </div>
       </div>`).join('')
-    : '<p style="color:rgba(255,255,255,0.4);font-size:13px">Žádné uložené projekty</p>';
+    : '<p style="color:rgba(255,255,255,0.35);font-size:13px">Žádné uložené projekty</p>';
 }
 
 // ─────────────────────────────────────────────
 // EVENT BINDING
 // ─────────────────────────────────────────────
 function bindAll() {
-  // connection toggle
-  $('btn-conn-toggle').onclick=()=>$('conn-bar').classList.toggle('open');
-
-  // load feed
+  // Load feed
   $('btn-load-feed').onclick=async()=>{
     const st=$('feed-status');
-    st.textContent='Načítám…';
+    const btn=$('btn-load-feed');
+    btn.textContent='Načítám…'; btn.disabled=true;
+    st.textContent=''; st.className='';
     try {
       APP.products=await loadFeedProducts();
       renderProductList();
-      st.textContent=`${APP.products.length} produktů`;
+      st.textContent=`✓ ${APP.products.length} produktů`;
+      st.className='ok';
       showToast(`Načteno ${APP.products.length} produktů`);
-    } catch(e) { st.textContent='Chyba!'; showToast(e.message,'error'); }
+    } catch(e) {
+      st.textContent='Chyba';
+      st.className='err';
+      showToast(e.message,'error');
+    } finally { btn.textContent='Načíst feed'; btn.disabled=false; }
   };
 
-  // search
+  // Search
   $('inp-search').addEventListener('input',e=>renderProductList(e.target.value));
 
-  // product click
+  // Product click
   $('sidebar-products').addEventListener('click',e=>{
     const item=e.target.closest('.product-item'); if(!item)return;
     const p=APP.products.find(x=>x.id===item.dataset.pid); if(!p)return;
@@ -1727,31 +1542,53 @@ function bindAll() {
     showStage('configure');
   });
 
-  // count slider
+  // Count slider
   $('cfg-count').addEventListener('input',e=>$('cfg-count-label').textContent=e.target.value);
 
-  // generate
+  // Generate
   $('btn-generate').onclick=async()=>{
     if(!APP.selectedProduct)return;
     const count=+$('cfg-count').value;
     const enabled=[...document.querySelectorAll('input[name=tmpl]:checked')].map(c=>c.value);
     if(!enabled.length){ showToast('Vyberte alespoň jednu šablonu','error'); return; }
-    $('btn-generate').textContent='Generuji…'; $('btn-generate').disabled=true;
+    showOverlay('Generuji bannery…','Připravuji varianty');
     try {
       APP.variants=await generateVariants(APP.selectedProduct,{count,enabledTemplates:enabled});
+      setProgress(100,'Hotovo!','');
+      await new Promise(r=>setTimeout(r,300));
+      hideOverlay();
       showStage('workspace'); renderVariantGrid();
       showToast(`${APP.variants.length} variant vygenerováno`);
-    } catch(e){ showToast(e.message,'error'); }
-    finally { $('btn-generate').textContent='Generovat bannery'; $('btn-generate').disabled=false; }
+    } catch(e){ hideOverlay(); showToast(e.message,'error'); }
   };
 
-  // back
+  // Back
   $('btn-back').onclick=()=>showStage('configure');
 
-  // variant grid actions
+  // Status filter tabs
+  document.querySelectorAll('.ftab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      APP.activeFilter=btn.dataset.filter;
+      renderVariantGrid();
+    });
+  });
+
+  // Format toggle
+  document.querySelectorAll('.fmt-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.fmt-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      APP.activeFormat=btn.dataset.fmt;
+      renderVariantGrid();
+    });
+  });
+
+  // Variant grid actions
   $('variant-grid').addEventListener('click',async e=>{
     const t=e.target;
-    if(t.dataset.approve){ const v=APP.variants.find(x=>x.id===t.dataset.approve); if(v){v.status='approved';updateCard(v);} }
+    if(t.dataset.approve){ const v=APP.variants.find(x=>x.id===t.dataset.approve); if(v){v.status='approved';updateCard(v);showToast('Schváleno ✓');} }
     if(t.dataset.reject) { const v=APP.variants.find(x=>x.id===t.dataset.reject);  if(v){v.status='rejected';updateCard(v);} }
     if(t.dataset.edit)   openEditor(t.dataset.edit);
     if(t.dataset.dup) {
@@ -1771,14 +1608,14 @@ function bindAll() {
     }
   });
 
-  // export bulk
+  // Export bulk
   $('btn-export-bulk').onclick=()=>{
     const ok=APP.variants.filter(v=>v.status==='approved');
     if(!ok.length){ showToast('Nejsou schválené varianty','error'); return; }
     exportBulkZIP(ok);
   };
 
-  // save project
+  // Save project
   $('btn-save-project').onclick=()=>{
     const p={
       id:APP.project?.id||uid(),
@@ -1790,25 +1627,26 @@ function bindAll() {
       variants:APP.variants,
     };
     APP.project=p; saveProjectLS(p);
-    showToast('Projekt uložen');
+    showToast('Projekt uložen 💾');
   };
 
-  // editor modal
+  // Editor modal
   $('btn-close-editor').onclick=closeEditor;
   $('editor-modal').addEventListener('click',e=>{ if(e.target===$('editor-modal'))closeEditor(); });
 
-  // projects modal
+  // Projects modal
   $('btn-projects').onclick=openProjects;
   $('btn-close-projects').onclick=()=>$('projects-modal').classList.add('hidden');
   $('projects-modal').addEventListener('click',e=>{ if(e.target===$('projects-modal'))$('projects-modal').classList.add('hidden'); });
-
   $('projects-list').addEventListener('click',async e=>{
     const t=e.target;
     if(t.dataset.loadP) {
       const proj=loadProjects().find(p=>p.id===t.dataset.loadP); if(!proj)return;
       APP.project=proj; APP.variants=proj.variants||[];
       APP.selectedProduct=APP.products.find(p=>p.id===proj.productId)||null;
+      showOverlay('Načítám projekt…','Generuji náhledy');
       for(const v of APP.variants) if(!Object.keys(v.previews||{}).length) await genPreviews(v,APP.products.find(p=>p.id===v.product?.id)||null);
+      hideOverlay();
       showStage('workspace'); renderVariantGrid();
       $('projects-modal').classList.add('hidden'); showToast('Projekt načten');
     }
@@ -1816,17 +1654,20 @@ function bindAll() {
     if(t.dataset.delP) { deleteProjectLS(t.dataset.delP); renderProjectsList(); showToast('Smazáno'); }
   });
 
-  // import JSON
+  // Import JSON
   $('btn-import-json').onclick=()=>$('inp-import-file').click();
   $('inp-import-file').addEventListener('change',e=>{
     const f=e.target.files[0]; if(!f)return;
     const r=new FileReader(); r.onload=ev=>{
-      try{ const p=JSON.parse(ev.target.result); if(!p.id)p.id=uid(); p.savedAt=new Date().toISOString(); saveProjectLS(p); renderProjectsList(); showToast('Importováno'); }
-      catch{ showToast('Neplatný JSON','error'); }
+      try{
+        const p=JSON.parse(ev.target.result);
+        if(!p.id)p.id=uid(); p.savedAt=new Date().toISOString();
+        saveProjectLS(p); renderProjectsList(); showToast('Importováno');
+      } catch{ showToast('Neplatný JSON','error'); }
     }; r.readAsText(f); e.target.value='';
   });
 
-  // bundles
+  // Bundles
   $('btn-new-bundle').onclick=()=>{
     const name=prompt('Název bundlu:'); if(!name)return;
     APP.bundles.push({id:uid(),name,productIds:[]}); renderBundleList(); showToast('Bundle přidán');
@@ -1834,16 +1675,28 @@ function bindAll() {
   $('bundle-list').addEventListener('click',e=>{
     if(e.target.dataset.delBundle){ APP.bundles=APP.bundles.filter(b=>b.id!==e.target.dataset.delBundle); renderBundleList(); }
   });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){
+      if(!$('editor-modal').classList.contains('hidden')) closeEditor();
+      else if(!$('projects-modal').classList.contains('hidden')) $('projects-modal').classList.add('hidden');
+    }
+  });
 }
 
 // ─────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────
 function init() {
+  // Restore saved feed URL
+  const savedUrl=localStorage.getItem(FEED_URL_KEY);
+  if (savedUrl) $('inp-feed-url').value=savedUrl;
+
   bindAll();
   showStage('select');
   renderBundleList();
-  $('conn-bar').classList.add('open');
+  $('sidebar-count').textContent='0';
 }
 
 document.fonts.ready.then(init);
