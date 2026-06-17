@@ -1115,24 +1115,39 @@ function parseJSONFeed(json) {
 }
 
 async function fetchWithCorsFallback(url) {
+  const TIMEOUT = 25000;
+
+  // 1. Direct fetch
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
-    if (r.ok) return r;
-    // If server error on direct, still try proxy in case it's a CORS-masked error
-    if (r.status >= 400) throw new Error(`HTTP ${r.status} ${r.statusText}`);
-  } catch(e) {
-    if (e.message?.startsWith('HTTP')) throw e;
-    // Network / CORS error — try corsproxy.io as fallback
-    console.warn('Direct fetch failed, trying CORS proxy:', e.message);
+    const r = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT) });
+    if (r.ok) return { response: r };
+  } catch(_) { /* CORS/network – try proxies */ }
+
+  // 2. Chain of public CORS proxies
+  const proxies = [
+    { label: 'corsproxy.io',
+      getUrl: u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+      extract: async r => ({ text: await r.text() }) },
+    { label: 'allorigins.win',
+      getUrl: u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
+      extract: async r => { const j = await r.json(); return { text: j.contents||'' }; } },
+    { label: 'codetabs.com',
+      getUrl: u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+      extract: async r => ({ text: await r.text() }) },
+  ];
+
+  for (const p of proxies) {
+    try {
+      const r = await fetch(p.getUrl(url), { signal: AbortSignal.timeout(TIMEOUT) });
+      if (r.ok) {
+        const result = await p.extract(r);
+        console.info(`[feed] loaded via ${p.label}`);
+        return result;
+      }
+    } catch(e) { console.warn(`[feed] proxy ${p.label} failed:`, e.message); }
   }
-  const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
-  try {
-    const r = await fetch(proxy, { signal: AbortSignal.timeout(20000) });
-    if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
-    return r;
-  } catch(e2) {
-    throw new Error('Nelze načíst feed (CORS). Zkuste feed URL s povoleným CORS nebo jiný feed.');
-  }
+
+  throw new Error('Nelze načíst feed ze žádného zdroje. Zkontrolujte URL a připojení k internetu.');
 }
 
 async function loadFeedProducts() {
@@ -1140,8 +1155,8 @@ async function loadFeedProducts() {
   if (!url) throw new Error('Zadejte URL feedu');
   localStorage.setItem(FEED_URL_KEY, url);
 
-  const res = await fetchWithCorsFallback(url);
-  const text = await res.text();
+  const fetched = await fetchWithCorsFallback(url);
+  const text = fetched.text ?? await fetched.response.text();
 
   // JSON?
   const trimmed = text.trimStart();
